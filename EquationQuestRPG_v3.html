@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Equation Quest RPG — 6.EE.C.9</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Tone.js/14.8.49/Tone.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   RESET & VARIABLES
+   ============================================================ */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --primary:   #00d4ff;
+  --secondary: #ff006e;
+  --accent:    #ffbe0b;
+  --success:   #00ff88;
+  --danger:    #ff4757;
+  --warning:   #ffa502;
+  --neutral:   #9fb3d5;
+  --dark:      rgba(22,34,60,0.96);
+  --panel:     rgba(30,44,76,0.94);
+  --border:    rgba(0,212,255,0.35);
+}
+html, body { width:100%; height:100%; overflow:hidden; }
+body {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  background: #0d1b35;
+  color: var(--primary);
+}
+
+/* ============================================================
+   ANIMATED BACKGROUND
+   ============================================================ */
+#bg {
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background: radial-gradient(ellipse at 20% 50%, rgba(255,0,110,0.07) 0%, transparent 55%),
+              radial-gradient(ellipse at 80% 20%, rgba(0,212,255,0.07) 0%, transparent 55%),
+              radial-gradient(ellipse at 50% 90%, rgba(255,190,11,0.04) 0%, transparent 50%),
+              linear-gradient(160deg, #0d1b35 0%, #112040 50%, #0a1628 100%);
+}
+.stars {
+  position:absolute; inset:0;
+  background-image:
+    radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.9), transparent),
+    radial-gradient(1px 1px at 25% 40%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1px 1px at 40% 10%, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1px 1px at 55% 60%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 70% 30%, rgba(255,255,255,0.9), transparent),
+    radial-gradient(1px 1px at 85% 75%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1px 1px at 95% 20%, rgba(255,255,255,0.8), transparent),
+    radial-gradient(2px 2px at 15% 80%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(2px 2px at 60% 85%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 33% 55%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 78% 45%, rgba(255,255,255,0.8), transparent);
+  background-size: 400px 400px;
+  animation: starTwinkle 4s ease-in-out infinite alternate;
+}
+@keyframes starTwinkle { from{opacity:0.5} to{opacity:1} }
+.grid-bg {
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: gridDrift 80s linear infinite;
+}
+@keyframes gridDrift { 0%{transform:translateY(0)} 100%{transform:translateY(60px)} }
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+#app {
+  position:relative; z-index:1;
+  width:100%; height:100vh;
+  display:grid;
+  grid-template-columns: 260px 1fr 260px;
+  grid-template-rows: 1fr;
+  gap:16px; padding:16px;
+}
+
+/* ============================================================
+   PANELS (shared)
+   ============================================================ */
+.panel {
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius:14px;
+  backdrop-filter: blur(14px);
+  overflow:hidden;
+  display:flex; flex-direction:column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.panel-header {
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Orbitron', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent);
+  display:flex; align-items:center; gap:8px;
+}
+.panel-body { padding:14px; overflow-y:auto; flex:1; gap:10px; display:flex; flex-direction:column; }
+
+/* ============================================================
+   CHARACTER PANEL
+   ============================================================ */
+#char-panel { border-color: rgba(0,212,255,0.3); }
+.char-avatar {
+  font-size: 4rem; text-align:center; padding:12px 0;
+  filter: drop-shadow(0 0 18px rgba(0,212,255,0.5));
+  animation: bobFloat 3s ease-in-out infinite;
+}
+@keyframes bobFloat {
+  0%,100%{transform:translateY(0) rotate(-1deg)}
+  50%{transform:translateY(-10px) rotate(1deg)}
+}
+.char-name {
+  font-family:'Orbitron',monospace; font-size:1rem; font-weight:900;
+  color:var(--accent); text-align:center; margin-bottom:2px;
+  text-shadow: 0 0 12px rgba(255,190,11,0.4);
+}
+.char-title {
+  font-size:0.65rem; color:var(--neutral); text-align:center;
+  letter-spacing:2px; text-transform:uppercase; margin-bottom:10px;
+}
+/* Stat bars */
+.stat-block { display:flex; flex-direction:column; gap:5px; }
+.stat-label-row { display:flex; justify-content:space-between; font-size:0.7rem; }
+.stat-label-row .lbl { color:var(--accent); text-transform:uppercase; letter-spacing:1px; font-weight:bold; }
+.stat-label-row .val { color:#fff; }
+.bar-track {
+  width:100%; height:12px;
+  background:rgba(0,0,0,0.5);
+  border-radius:6px; overflow:hidden;
+  border:1px solid rgba(255,255,255,0.08);
+}
+.bar-fill { height:100%; border-radius:6px; transition:width 0.5s cubic-bezier(.34,1.56,.64,1); }
+.bar-hp   { background:linear-gradient(90deg,#ff4757,#ff7675); box-shadow:0 0 8px rgba(255,71,87,0.5); }
+.bar-mana { background:linear-gradient(90deg,#6c5ce7,#74b9ff); box-shadow:0 0 8px rgba(108,92,231,0.5); }
+.bar-xp   { background:linear-gradient(90deg,var(--primary),var(--accent)); box-shadow:0 0 8px rgba(0,212,255,0.5); }
+/* Stat row */
+.stat-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 10px;
+  background:rgba(0,212,255,0.06); border:1px solid var(--border); border-radius:8px;
+  font-size:0.8rem;
+}
+.stat-row .lbl { color:var(--accent); font-size:0.65rem; text-transform:uppercase; letter-spacing:1px; }
+.stat-row .val { color:#fff; font-weight:bold; font-size:1rem; }
+/* Equipment */
+.equip-title { font-size:0.65rem; color:var(--secondary); text-transform:uppercase; letter-spacing:2px; font-weight:bold; margin-top:4px; }
+.equip-item {
+  display:flex; align-items:center; gap:8px; padding:7px 10px;
+  background:rgba(255,0,110,0.07); border:1px solid rgba(255,0,110,0.25); border-radius:7px;
+}
+.equip-icon { font-size:1.2rem; }
+.equip-name { color:var(--primary); font-size:0.75rem; flex:1; }
+.equip-bonus { color:var(--success); font-size:0.65rem; font-weight:bold; }
+
+/* ============================================================
+   MAIN BATTLE AREA
+   ============================================================ */
+#battle-area {
+  border-color: rgba(255,0,110,0.3);
+  display:flex; flex-direction:column; align-items:center;
+  padding:20px; gap:14px; overflow-y:auto;
+}
+#battle-area::before {
+  content:''; position:absolute; inset:0; border-radius:14px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255,0,110,0.06) 0%, transparent 60%);
+  pointer-events:none;
+}
+.quest-header { text-align:center; width:100%; border-bottom:1px solid rgba(255,0,110,0.3); padding-bottom:12px; }
+.quest-title {
+  font-family:'Orbitron',monospace; font-size:1rem; font-weight:900;
+  color:var(--secondary); letter-spacing:2px; margin-bottom:4px;
+  text-shadow: 0 0 16px rgba(255,0,110,0.5);
+}
+.quest-sub { font-size:0.8rem; color:var(--neutral); }
+
+/* Combatants */
+.combatants {
+  display:flex; align-items:center; justify-content:space-around;
+  width:100%; gap:30px;
+}
+.combatant { display:flex; flex-direction:column; align-items:center; gap:8px; }
+.combatant-sprite {
+  font-size:5rem; line-height:1;
+  animation: combatFloat 2.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 18px rgba(0,212,255,0.4));
+}
+.enemy-sprite { animation-delay: -1.2s; filter: drop-shadow(0 0 18px rgba(255,0,110,0.4)); }
+@keyframes combatFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+.combatant-name { font-size:0.85rem; color:var(--primary); font-weight:bold; }
+.hp-label { font-size:0.75rem; color:var(--accent); font-weight:bold; }
+.combatant-bar { width:190px; height:18px; background:rgba(0,0,0,0.5); border:1px solid #ff4757; border-radius:9px; overflow:hidden; }
+.combatant-bar-fill { height:100%; background:linear-gradient(90deg,#ff4757,#ff9090); border-radius:9px; transition:width 0.5s cubic-bezier(.34,1.56,.64,1); width:100%; }
+
+.vs { font-size:2rem; color:var(--danger); font-weight:900; animation:vsPulse 1.2s ease-in-out infinite; font-family:'Orbitron',monospace; }
+@keyframes vsPulse { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(1.2);opacity:1} }
+
+/* ============================================================
+   PROBLEM AREA
+   ============================================================ */
+#problem-area {
+  width:100%; max-width:680px;
+  background:rgba(0,0,0,0.45);
+  border:2px solid var(--primary);
+  border-radius:14px; padding:26px 28px;
+  box-shadow: 0 0 30px rgba(0,212,255,0.12), inset 0 1px 0 rgba(255,255,255,0.04);
+  position:relative; overflow:hidden;
+}
+#problem-area::before {
+  content:''; position:absolute; inset:0; border-radius:14px;
+  background:radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.06) 0%, transparent 60%);
+  pointer-events:none;
+}
+.prob-context {
+  background: rgba(255,190,11,0.12);
+  border-left: 5px solid var(--accent);
+  border-radius: 8px;
+  padding: 13px 16px; margin-bottom:18px;
+  font-size: 1.25rem; font-weight:800; color:#fff;
+  line-height:1.45;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+}
+.prob-question {
+  font-size: 1.3rem; font-weight:700; color:#fff;
+  margin-bottom:14px; line-height:1.6;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+}
+/* Big equation display */
+.equation-box {
+  display:flex; align-items:center; justify-content:center; flex-wrap:wrap;
+  gap:6px; padding:14px 18px; margin:12px 0 18px;
+  background:rgba(0,0,0,0.35); border-radius:12px;
+  border:1px solid rgba(0,212,255,0.2);
+}
+.eq-var { font-size:2.5rem; font-weight:900; color:var(--primary); font-family:'Orbitron',monospace; line-height:1; }
+.eq-op  { font-size:2.8rem; font-weight:900; color:var(--accent);  font-family:'Orbitron',monospace; line-height:1; text-shadow:0 0 20px rgba(255,190,11,0.7); padding:0 4px; }
+.eq-num { font-size:2.5rem; font-weight:900; color:#fff;           font-family:'Orbitron',monospace; line-height:1; }
+.eq-sub { font-size:2.5rem; font-weight:900; color:var(--success); font-family:'Orbitron',monospace; line-height:1; }
+
+/* Multiple choice */
+.mc-options { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+.mc-btn {
+  width:100%; padding:13px 18px; text-align:left;
+  font-family:'Share Tech Mono','Courier New',monospace;
+  font-size:1.05rem; font-weight:bold;
+  background:rgba(0,212,255,0.07); border:1.5px solid rgba(0,212,255,0.3);
+  color:#fff; border-radius:9px; cursor:pointer;
+  transition:all 0.2s; line-height:1.4;
+}
+.mc-btn:hover { background:rgba(0,212,255,0.18); border-color:var(--primary); transform:translateX(4px); box-shadow:0 0 14px rgba(0,212,255,0.3); }
+.mc-btn.correct-flash { background:rgba(0,255,136,0.25); border-color:var(--success); }
+.mc-btn.wrong-flash   { background:rgba(255,71,87,0.25);  border-color:var(--danger); }
+
+/* Text input row */
+.input-row { display:flex; gap:10px; margin:14px 0; flex-wrap:wrap; justify-content:center; }
+.answer-input {
+  padding:13px 18px;
+  background:rgba(0,0,0,0.55); border:2px solid var(--primary);
+  color:#fff; font-family:'Share Tech Mono',monospace; font-size:1.4rem;
+  border-radius:9px; min-width:210px; transition:all 0.25s;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
+}
+.answer-input:focus { outline:none; box-shadow:0 0 22px rgba(0,212,255,0.55), inset 0 2px 8px rgba(0,0,0,0.4); border-color:#00efff; transform:scale(1.02); }
+.answer-input.shake { animation:shake 0.4s; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
+
+.btn-row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:4px; }
+.btn {
+  padding:13px 28px;
+  font-family:'Share Tech Mono',monospace; font-size:1rem; font-weight:bold;
+  border-radius:9px; cursor:pointer; transition:all 0.25s;
+  text-transform:uppercase; letter-spacing:1.5px;
+  border:2px solid var(--primary); color:var(--primary);
+  background:rgba(0,212,255,0.1);
+}
+.btn:hover { background:rgba(0,212,255,0.22); box-shadow:0 0 20px rgba(0,212,255,0.45); transform:translateY(-2px); }
+.btn:active { transform:translateY(0); }
+.btn-green { border-color:var(--success); color:var(--success); background:rgba(0,255,136,0.08); }
+.btn-green:hover { background:rgba(0,255,136,0.2); box-shadow:0 0 20px rgba(0,255,136,0.4); }
+.btn-yellow { border-color:var(--warning); color:var(--warning); background:rgba(255,165,2,0.08); font-size:0.9rem; padding:11px 20px; }
+.btn-yellow:hover { background:rgba(255,165,2,0.2); box-shadow:0 0 16px rgba(255,165,2,0.4); }
+
+.attempts-bar { text-align:center; font-size:0.95rem; color:var(--warning); font-weight:bold; margin:6px 0; letter-spacing:1px; }
+.example-note { font-size:0.95rem; color:rgba(255,255,255,0.65); margin-bottom:10px; }
+.hint-box {
+  background:rgba(0,212,255,0.08); border-left:4px solid var(--primary);
+  border-radius:8px; padding:12px 16px; margin-top:12px;
+  font-size:1rem; color:#fff; font-style:italic; line-height:1.55;
+  animation:slideIn 0.35s ease-out;
+}
+@keyframes slideIn { from{opacity:0;transform:translateX(-16px)} to{opacity:1;transform:translateX(0)} }
+/* Correct/wrong overlay on problem area */
+.result-flash {
+  position:absolute; inset:0; border-radius:14px; pointer-events:none;
+  opacity:0; transition:opacity 0.15s;
+}
+.result-flash.flash-correct { background:rgba(0,255,136,0.08); opacity:1; }
+.result-flash.flash-wrong   { background:rgba(255,71,87,0.08);  opacity:1; }
+
+/* ============================================================
+   QUEST LOG (right panel)
+   ============================================================ */
+#quest-panel { border-color:rgba(255,190,11,0.3); }
+.quest-item {
+  padding:12px 14px;
+  background:rgba(0,212,255,0.05); border:1.5px solid rgba(255,190,11,0.25);
+  border-radius:9px; cursor:pointer; transition:all 0.25s;
+}
+.quest-item:hover { background:rgba(255,190,11,0.12); border-color:var(--accent); transform:translateX(4px); }
+.quest-item.active { background:rgba(255,190,11,0.15); border-color:var(--accent); box-shadow:0 0 14px rgba(255,190,11,0.3); }
+.quest-item.completed { opacity:0.55; border-color:var(--success); }
+.quest-item.locked { opacity:0.35; cursor:not-allowed; }
+.qi-name { font-weight:bold; color:var(--primary); font-size:0.85rem; margin-bottom:4px; }
+.qi-stars { font-size:0.7rem; color:var(--neutral); margin-bottom:3px; }
+.qi-reward { font-size:0.7rem; color:var(--success); font-weight:bold; }
+/* Battle log */
+.log-entry { font-size:0.8rem; padding:7px 10px; border-radius:6px; background:rgba(0,0,0,0.25); border-left:3px solid var(--border); color:var(--neutral); animation:slideIn 0.3s ease-out; }
+.log-entry.correct { border-color:var(--success); color:var(--success); }
+.log-entry.wrong   { border-color:var(--danger); color:var(--danger); }
+.log-entry.info    { border-color:var(--accent); color:var(--accent); }
+#log-entries { display:flex; flex-direction:column; gap:5px; max-height:180px; overflow-y:auto; }
+
+/* ============================================================
+   FLOATING FEEDBACK
+   ============================================================ */
+.feedback-pop {
+  position:fixed; pointer-events:none; z-index:999;
+  font-family:'Orbitron',monospace; font-size:2.5rem; font-weight:900;
+  top:50%; left:50%; transform:translate(-50%,-50%);
+  animation:feedPop 0.85s cubic-bezier(.34,1.56,.64,1) forwards;
+  text-shadow:0 0 30px currentColor;
+}
+@keyframes feedPop {
+  0%  { opacity:1; transform:translate(-50%,-50%) scale(0.3); }
+  60% { opacity:1; transform:translate(-50%,-80%) scale(1.1); }
+  100%{ opacity:0; transform:translate(-50%,-120%) scale(0.9); }
+}
+.feed-correct { color:var(--success); }
+.feed-wrong   { color:var(--danger); }
+.particle { position:fixed; pointer-events:none; z-index:500; border-radius:50%; }
+
+/* ============================================================
+   STREAK & COMBO
+   ============================================================ */
+#streak-display {
+  position:fixed; top:20px; left:50%; transform:translateX(-50%);
+  font-family:'Orbitron',monospace; font-size:1.4rem; font-weight:900;
+  color:var(--accent); z-index:100; pointer-events:none;
+  text-shadow:0 0 20px rgba(255,190,11,0.8);
+  animation:streakPulse 0.5s ease-out;
+  display:none;
+}
+@keyframes streakPulse { 0%{transform:translateX(-50%) scale(0.5)} 60%{transform:translateX(-50%) scale(1.2)} 100%{transform:translateX(-50%) scale(1)} }
+
+/* ============================================================
+   PROGRESS BAR (top of battle area)
+   ============================================================ */
+.stage-progress {
+  width:100%; display:flex; flex-direction:column; gap:4px;
+}
+.stage-label { font-size:0.7rem; color:var(--neutral); text-transform:uppercase; letter-spacing:1px; display:flex; justify-content:space-between; }
+.stage-track { width:100%; height:8px; background:rgba(0,0,0,0.4); border-radius:4px; overflow:hidden; border:1px solid rgba(255,0,110,0.2); }
+.stage-fill { height:100%; background:linear-gradient(90deg,var(--secondary),var(--accent)); border-radius:4px; transition:width 0.6s; }
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+.modal-bg {
+  display:none; position:fixed; inset:0; z-index:800;
+  background:rgba(0,0,0,0.82); backdrop-filter:blur(8px);
+  align-items:center; justify-content:center;
+}
+.modal-bg.show { display:flex; animation:fadeIn 0.25s ease-out; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.modal-box {
+  background:linear-gradient(145deg, rgba(30,44,76,0.98), rgba(20,30,55,0.98));
+  border:2px solid var(--primary); border-radius:18px; padding:44px 48px;
+  max-width:520px; width:90%; text-align:center;
+  box-shadow:0 24px 64px rgba(0,0,0,0.7), 0 0 40px rgba(0,212,255,0.1);
+  animation:modalIn 0.4s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes modalIn { from{opacity:0;transform:translateY(-40px) scale(0.92)} to{opacity:1;transform:translateY(0) scale(1)} }
+.modal-title { font-family:'Orbitron',monospace; font-size:2rem; font-weight:900; margin-bottom:12px; }
+.modal-emoji { font-size:4rem; margin:14px 0; }
+.modal-reward { font-size:1.25rem; color:var(--accent); font-weight:bold; margin:10px 0 20px; }
+.modal-msg { font-size:0.95rem; color:var(--neutral); line-height:1.65; margin-bottom:24px; }
+.modal-box input {
+  width:100%; max-width:340px; padding:14px 18px; margin-bottom:20px;
+  background:rgba(0,0,0,0.55); border:2px solid var(--primary); color:#fff;
+  font-family:'Share Tech Mono',monospace; font-size:1.2rem; border-radius:9px;
+}
+.modal-box input:focus { outline:none; box-shadow:0 0 20px rgba(0,212,255,0.5); }
+.modal-box p { color:var(--neutral); font-size:1rem; line-height:1.6; margin-bottom:22px; }
+.modal-box h2 { font-family:'Orbitron',monospace; font-size:1.6rem; color:var(--primary); margin-bottom:12px; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width:1100px) {
+  #app { grid-template-columns:1fr; grid-template-rows:auto 1fr auto; height:auto; overflow:auto; }
+  #char-panel, #quest-panel { max-height:160px; }
+}
+@media (max-width:700px) {
+  #char-panel, #quest-panel { display:none; }
+  #app { padding:10px; }
+  .combatant-sprite { font-size:3.5rem; }
+}
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(0,212,255,0.25); border-radius:3px; }
+</style>
+</head>
+<body>
+<!-- BACKGROUND -->
+<div id="bg"><div class="stars"></div><div class="grid-bg"></div></div>
+<!-- STREAK -->
+<div id="streak-display"></div>
+
+<div id="app">
+  <!-- LEFT: CHARACTER -->
+  <div class="panel" id="char-panel">
+    <div class="panel-header">&#x1F9D9; Character</div>
+    <div class="panel-body">
+      <div class="char-avatar" id="charAvatar">&#x1F9D9;</div>
+      <div class="char-name"  id="charName">Scholar</div>
+      <div class="char-title" id="charTitle">Equation Novice</div>
+
+      <div class="stat-block">
+        <div class="stat-label-row"><span class="lbl">HP</span><span class="val" id="hpVal">100/100</span></div>
+        <div class="bar-track"><div class="bar-fill bar-hp" id="barHp" style="width:100%"></div></div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label-row"><span class="lbl">Mana</span><span class="val" id="manaVal">50/50</span></div>
+        <div class="bar-track"><div class="bar-fill bar-mana" id="barMana" style="width:100%"></div></div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label-row"><span class="lbl">XP to next level</span><span class="val" id="xpVal">0/100</span></div>
+        <div class="bar-track"><div class="bar-fill bar-xp" id="barXp" style="width:0%"></div></div>
+      </div>
+
+      <div class="stat-row"><span class="lbl">Level</span><span class="val" id="levelVal">1</span></div>
+      <div class="stat-row"><span class="lbl">Quests Won</span><span class="val" id="questsWon">0</span></div>
+      <div class="stat-row"><span class="lbl">Streak</span><span class="val" id="streakVal">0</span></div>
+
+      <div class="equip-title">&#x2694;&#xFE0F; Equipment</div>
+      <div class="equip-item"><span class="equip-icon">&#x1F5E1;&#xFE0F;</span><span class="equip-name" id="eWeapon">Wooden Sword</span><span class="equip-bonus" id="eWeaponB">+1 ATK</span></div>
+      <div class="equip-item"><span class="equip-icon">&#x1F6E1;&#xFE0F;</span><span class="equip-name" id="eArmor">Cloth Armor</span><span class="equip-bonus" id="eArmorB">+1 DEF</span></div>
+      <div class="equip-item"><span class="equip-icon">&#x1F48E;</span><span class="equip-name" id="eAmulet">Novice Amulet</span><span class="equip-bonus" id="eAmuletB">+5 XP</span></div>
+    </div>
+  </div>
+
+  <!-- CENTER: BATTLE -->
+  <div class="panel" id="battle-area">
+    <div class="quest-header">
+      <div class="quest-title" id="questTitle">Academy Trial</div>
+      <div class="quest-sub"   id="questSub">Defeat the equation guardian</div>
+    </div>
+
+    <div class="stage-progress">
+      <div class="stage-label"><span>Enemy HP</span><span id="enemyHpLabel">50 / 50</span></div>
+      <div class="stage-track"><div class="stage-fill" id="enemyHpFill" style="width:100%"></div></div>
+    </div>
+
+    <div class="combatants">
+      <div class="combatant">
+        <div class="combatant-sprite" id="playerSprite">&#x1F9D9;</div>
+        <div class="combatant-name"   id="playerCombatName">You</div>
+        <div class="hp-label"><span id="playerHpNum">100</span> HP</div>
+        <div class="combatant-bar"><div class="combatant-bar-fill" id="playerHpBar"></div></div>
+      </div>
+      <div class="vs">VS</div>
+      <div class="combatant">
+        <div class="combatant-sprite enemy-sprite" id="enemySprite">&#x1F916;</div>
+        <div class="combatant-name" id="enemyCombatName">Equation Guardian</div>
+        <div class="hp-label"><span id="enemyHpNum">50</span> HP</div>
+        <div class="combatant-bar"><div class="combatant-bar-fill" id="enemyHpBar"></div></div>
+      </div>
+    </div>
+
+    <div id="problem-area">
+      <div class="result-flash" id="resultFlash"></div>
+      <div id="problemContent"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: QUEST LOG -->
+  <div class="panel" id="quest-panel">
+    <div class="panel-header">&#x1F4DC; Quest Log</div>
+    <div class="panel-body">
+      <div id="questList"></div>
+      <div class="panel-header" style="border:none;padding:10px 0 4px;margin-top:8px;">&#x1F4E3; Battle Log</div>
+      <div id="log-entries"></div>
+    </div>
+  </div>
+</div>
+
+<!-- VICTORY/DEFEAT MODAL -->
+<div class="modal-bg" id="resultModal">
+  <div class="modal-box">
+    <div class="modal-title" id="modalTitle">Victory!</div>
+    <div class="modal-emoji" id="modalEmoji">&#x1F389;</div>
+    <div class="modal-reward" id="modalReward">+250 XP</div>
+    <div class="modal-msg"   id="modalMsg"></div>
+    <button class="btn btn-green" id="continueBtn">Continue Adventure &#x2192;</button>
+  </div>
+</div>
+
+<!-- NAME MODAL -->
+<div class="modal-bg show" id="nameModal">
+  <div class="modal-box">
+    <h2>&#x2694;&#xFE0F; Equation Quest RPG</h2>
+    <p>Master 6th-grade equations in an epic RPG battle!<br>What is your hero&#39;s name?</p>
+    <input type="text" id="nameInput" placeholder="Enter your name..." maxlength="20">
+    <br>
+    <button class="btn btn-green" id="startBtn" style="width:100%;margin-top:8px;">Begin Quest &#x2192;</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  HELPERS  (global scope — always accessible)
+// ============================================================
+function calcY(coeff, constant, xVal) {
+  return coeff * xVal + constant;
+}
+
+function eqHTML(coeff, constant) {
+  var h = '<span class="eq-var">y</span>'
+        + '<span class="eq-op">=</span>'
+        + '<span class="eq-num">' + coeff + '</span>'
+        + '<span class="eq-var">x</span>';
+  if (constant !== 0) {
+    h += '<span class="eq-op">+</span>'
+       + '<span class="eq-num">' + constant + '</span>';
+  }
+  return '<div class="equation-box">' + h + '</div>';
+}
+
+function normEq(s) {
+  return String(s).toLowerCase()
+    .replace(/\s/g, '')
+    .replace(/y=/g, '')
+    .replace(/\*/g, '');
+}
+
+function correctStr(coeff, constant) {
+  return constant === 0
+    ? (coeff + 'x')
+    : (coeff + 'x+' + constant);
+}
+
+function rand(n) { return Math.floor(Math.random() * n); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// ============================================================
+//  GAME DATA
+// ============================================================
+var QUESTS = [
+  {
+    id:1, name:'Academy Trial', sub:'Defeat the Equation Guardian to prove your worth',
+    difficulty:1, reward:{ xp:250 }, completed:false,
+    enemy:{ name:'Equation Guardian', hp:60, avatar:'&#x1F916;' },
+    scenarios:[
+      { ctx:'Pizza Pricing: Each pizza costs $15',
+        indep:'Pizzas (x)', dep:'Total Cost (y)', coeff:15, constant:0, diff:1,
+        hint:'Cost = Price per pizza &#xD7; number of pizzas. Each pizza is $15, so: y = 15x' },
+      { ctx:'Concert Tickets: Each ticket costs $25',
+        indep:'Tickets (x)', dep:'Total Spent (y)', coeff:25, constant:0, diff:1,
+        hint:'Total spent = $25 &#xD7; number of tickets. So: y = 25x' },
+      { ctx:'Movie Snacks: Each snack costs $8',
+        indep:'Snacks (x)', dep:'Total Spent (y)', coeff:8, constant:0, diff:1,
+        hint:'Total spent = $8 &#xD7; number of snacks. So: y = 8x' }
+    ]
+  },
+  {
+    id:2, name:'Chamber of Relationships', sub:'Master dependent and independent variables',
+    difficulty:2, reward:{ xp:400 }, completed:false, locked:true,
+    enemy:{ name:'Variable Wraith', hp:80, avatar:'&#x1F300;' },
+    scenarios:[
+      { ctx:'Lemonade Stand: Each cup sells for $2',
+        indep:'Cups (x)', dep:'Money Earned (y)', coeff:2, constant:0, diff:2,
+        hint:'Money earned = $2 &#xD7; cups sold. So: y = 2x' },
+      { ctx:'Garden Plants: Each row needs 8 plants',
+        indep:'Rows (x)', dep:'Plants Needed (y)', coeff:8, constant:0, diff:2,
+        hint:'Total plants = 8 &#xD7; number of rows. So: y = 8x' },
+      { ctx:'Book Rental: Each book costs $4',
+        indep:'Books (x)', dep:'Cost (y)', coeff:4, constant:0, diff:2,
+        hint:'Cost = $4 &#xD7; number of books. So: y = 4x' }
+    ]
+  },
+  {
+    id:3, name:'The Coefficient Tower', sub:'Face equations with coefficients and constants',
+    difficulty:3, reward:{ xp:600 }, completed:false, locked:true,
+    enemy:{ name:'Coefficient Dragon', hp:100, avatar:'&#x1F409;' },
+    scenarios:[
+      { ctx:'Bike Rental: $10 per hour PLUS a $5 deposit fee',
+        indep:'Hours (x)', dep:'Total Cost (y)', coeff:10, constant:5, diff:3,
+        hint:'Total cost = ($10 &#xD7; hours) + $5 deposit. So: y = 10x + 5' },
+      { ctx:'Book Club: $3 per book PLUS $20 membership fee',
+        indep:'Books (x)', dep:'Total Spent (y)', coeff:3, constant:20, diff:3,
+        hint:'Total spent = ($3 &#xD7; books) + $20 membership. So: y = 3x + 20' },
+      { ctx:'Gym Membership: $30 per month PLUS a $50 sign-up fee',
+        indep:'Months (x)', dep:'Total Cost (y)', coeff:30, constant:50, diff:3,
+        hint:'Total cost = ($30 &#xD7; months) + $50 sign-up. So: y = 30x + 50' }
+    ]
+  },
+  {
+    id:4, name:'Final Exam: Equation Master', sub:'Defeat the ultimate guardian to claim your title',
+    difficulty:4, reward:{ xp:1000 }, completed:false, locked:true,
+    enemy:{ name:'The Equation Lord', hp:150, avatar:'&#x1F451;' },
+    scenarios:[
+      { ctx:'Business Profit: $15 per item sold PLUS $30 startup cost',
+        indep:'Items Sold (x)', dep:'Profit (y)', coeff:15, constant:30, diff:4,
+        hint:'Profit = ($15 &#xD7; items) + $30 startup. So: y = 15x + 30' },
+      { ctx:'Streaming Service: $12 per month PLUS a $25 device fee',
+        indep:'Months (x)', dep:'Total Cost (y)', coeff:12, constant:25, diff:4,
+        hint:'Total cost = ($12 &#xD7; months) + $25 device fee. So: y = 12x + 25' }
+    ]
+  }
+];
+
+var EQUIPMENT_TIERS = [
+  [{ n:'Iron Sword',b:'+2 ATK'},{n:'Iron Armor',b:'+2 DEF'},{n:'Apprentice Amulet',b:'+10 XP'}],
+  [{ n:'Steel Blade',b:'+3 ATK'},{n:'Steel Armor',b:'+3 DEF'},{n:'Scholar Amulet',b:'+20 XP'}],
+  [{ n:'Crystal Sword',b:'+5 ATK'},{n:'Crystal Armor',b:'+5 DEF'},{n:'Master Amulet',b:'+50 XP'}]
+];
+
+var TITLES = ['Equation Novice','Equation Apprentice','Equation Adept','Equation Master','Legendary Mathematician'];
+
+// ============================================================
+//  GAME STATE
+// ============================================================
+var G = {
+  ch: {
+    name:'Scholar', title:'Equation Novice', avatar:'&#x1F9D9;',
+    level:1, xp:0, xpNeeded:100,
+    maxHp:100, hp:100, maxMana:50, mana:50,
+    questsWon:0, streak:0, bestStreak:0,
+    equip:{ weapon:{n:'Wooden Sword',b:'+1 ATK'}, armor:{n:'Cloth Armor',b:'+1 DEF'}, amulet:{n:'Novice Amulet',b:'+5 XP'} }
+  },
+  quests: QUESTS,
+  curQuestId: 1,
+  battle: null,   // { enemy, quest, round }
+  scenario: null,
+  analyzeAns: null,
+  hintUsed: false,
+  attempts: 0,
+  synth: null,
+
+  // ── Audio ──────────────────────────────────────────────────
+  initAudio: function() {
+    if (!this.synth && typeof Tone !== 'undefined') {
+      try {
+        this.synth = new Tone.PolySynth(Tone.Synth, {
+          oscillator:{ type:'square' },
+          envelope:{ attack:0.005, decay:0.12, sustain:0, release:0.1 }
+        }).toDestination();
+        this.synth.volume.value = -10;
+      } catch(e) {}
+    }
+  },
+  playTone: function(freqs, dur) {
+    try {
+      this.initAudio();
+      if (!this.synth) return;
+      if (!Array.isArray(freqs)) freqs = [freqs];
+      var self = this;
+      freqs.forEach(function(f, i) {
+        setTimeout(function(){ try{ self.synth.triggerAttackRelease(f, dur||0.12); }catch(e){} }, i*80);
+      });
+    } catch(e) {}
+  },
+  playCorrect: function() { this.playTone([523, 659, 784], 0.15); },
+  playWrong:   function() { this.playTone([220, 196], 0.18); },
+  playVictory: function() { this.playTone([523,659,784,1047], 0.2); },
+  playDefeat:  function() { this.playTone([330,220,165], 0.25); },
+
+  // ── Start ──────────────────────────────────────────────────
+  startWithName: function() {
+    var name = document.getElementById('nameInput').value.trim();
+    if (!name) { alert('Please enter a name!'); return; }
+    this.ch.name = name;
+    document.getElementById('nameModal').classList.remove('show');
+    this.renderCharacter();
+    this.renderQuestLog();
+    this.startQuest(1);
+  },
+
+  // ── Render Character ───────────────────────────────────────
+  renderCharacter: function() {
+    var c = this.ch;
+    document.getElementById('charAvatar').innerHTML    = c.avatar;
+    document.getElementById('charName').textContent    = c.name;
+    document.getElementById('charTitle').textContent   = c.title;
+    document.getElementById('levelVal').textContent    = c.level;
+    document.getElementById('hpVal').textContent       = c.hp + '/' + c.maxHp;
+    document.getElementById('manaVal').textContent     = c.mana + '/' + c.maxMana;
+    document.getElementById('xpVal').textContent       = c.xp + '/' + c.xpNeeded;
+    document.getElementById('questsWon').textContent   = c.questsWon;
+    document.getElementById('streakVal').textContent   = c.streak;
+    document.getElementById('barHp').style.width       = clamp((c.hp/c.maxHp)*100,0,100) + '%';
+    document.getElementById('barMana').style.width     = clamp((c.mana/c.maxMana)*100,0,100) + '%';
+    document.getElementById('barXp').style.width       = clamp((c.xp/c.xpNeeded)*100,0,100) + '%';
+    document.getElementById('playerSprite').innerHTML      = c.avatar;
+    document.getElementById('playerCombatName').textContent = c.name;
+    document.getElementById('playerHpNum').textContent     = Math.max(0, c.hp);
+    document.getElementById('playerHpBar').style.width     = clamp((c.hp/c.maxHp)*100,0,100) + '%';
+    document.getElementById('eWeapon').textContent  = c.equip.weapon.n;
+    document.getElementById('eWeaponB').textContent = c.equip.weapon.b;
+    document.getElementById('eArmor').textContent   = c.equip.armor.n;
+    document.getElementById('eArmorB').textContent  = c.equip.armor.b;
+    document.getElementById('eAmulet').textContent  = c.equip.amulet.n;
+    document.getElementById('eAmuletB').textContent = c.equip.amulet.b;
+  },
+
+  renderEnemy: function() {
+    var e = this.battle.enemy;
+    var pct = clamp((e.currentHp / e.maxHp) * 100, 0, 100);
+    document.getElementById('enemySprite').innerHTML       = e.avatar;
+    document.getElementById('enemyCombatName').textContent = e.name;
+    document.getElementById('enemyHpNum').textContent      = Math.max(0, e.currentHp);
+    document.getElementById('enemyHpBar').style.width      = pct + '%';
+    document.getElementById('enemyHpLabel').textContent    = Math.max(0,e.currentHp) + ' / ' + e.maxHp;
+    document.getElementById('enemyHpFill').style.width     = pct + '%';
+  },
+
+  // ── Quest Log ─────────────────────────────────────────────
+  renderQuestLog: function() {
+    var el = document.getElementById('questList');
+    el.innerHTML = '';
+    var self = this;
+    this.quests.forEach(function(q) {
+      var div = document.createElement('div');
+      var cls = 'quest-item';
+      if (q.id === self.curQuestId) cls += ' active';
+      if (q.completed) cls += ' completed';
+      if (q.locked)    cls += ' locked';
+      div.className = cls;
+      if (!q.locked) {
+        (function(id){ div.onclick = function(){ self.startQuest(id); }; })(q.id);
+      }
+      var stars = '';
+      for (var i=0;i<q.difficulty;i++) stars += '&#x2B50;';
+      div.innerHTML = '<div class="qi-name">' + (q.completed?'&#x2713; ':'') + q.name + '</div>'
+        + '<div class="qi-stars">' + stars + '</div>'
+        + '<div class="qi-reward">+' + q.reward.xp + ' XP</div>';
+      el.appendChild(div);
+    });
+  },
+
+  // ── Battle Log ────────────────────────────────────────────
+  addLog: function(msg, type) {
+    var el = document.getElementById('log-entries');
+    var div = document.createElement('div');
+    div.className = 'log-entry ' + (type||'');
+    div.textContent = msg;
+    el.insertBefore(div, el.firstChild);
+    while (el.children.length > 12) el.removeChild(el.lastChild);
+  },
+
+  // ── Start Quest ───────────────────────────────────────────
+  startQuest: function(id) {
+    var quest = null;
+    for (var i=0;i<this.quests.length;i++) { if (this.quests[i].id===id) { quest=this.quests[i]; break; } }
+    if (!quest || quest.locked) return;
+    this.curQuestId = id;
+    this.ch.hp   = this.ch.maxHp;
+    this.ch.mana = this.ch.maxMana;
+    this.battle  = { enemy:{ name:quest.enemy.name, avatar:quest.enemy.avatar, hp:quest.enemy.hp, maxHp:quest.enemy.hp, currentHp:quest.enemy.hp }, quest:quest, round:0 };
+    document.getElementById('questTitle').textContent = quest.name;
+    document.getElementById('questSub').textContent   = quest.sub;
+    this.renderCharacter();
+    this.renderEnemy();
+    this.renderQuestLog();
+    this.addLog('Quest started: ' + quest.name, 'info');
+    this.generateProblem();
+  },
+
+  // ── Generate Problem ──────────────────────────────────────
+  generateProblem: function() {
+    this.attempts  = 0;
+    this.hintUsed  = false;
+    this.analyzeAns = null;
+
+    var quest = this.battle.quest;
+    var round = this.battle.round;
+    var targetDiff = Math.min(round + 1, quest.difficulty);
+    var pool = quest.scenarios.filter(function(s){ return s.diff === targetDiff; });
+    if (!pool.length) pool = quest.scenarios;
+    var sc = pool[rand(pool.length)];
+    this.scenario = sc;
+
+    var types = ['identify','write','analyze'];
+    var type  = types[rand(3)];
+
+    var html = '<div class="prob-context">&#x1F4DA; ' + sc.ctx + '</div>';
+
+    if (type === 'identify') {
+      html += '<div class="prob-question">Which option correctly identifies the <strong>independent variable (x)</strong> and the <strong>dependent variable (y)</strong>?</div>';
+      var opts = [
+        { txt: 'Independent (x): ' + sc.indep + ' &nbsp;|&nbsp; Dependent (y): ' + sc.dep, ok: true },
+        { txt: 'Independent (x): ' + sc.dep   + ' &nbsp;|&nbsp; Dependent (y): ' + sc.indep, ok: false },
+        { txt: 'Both variables are independent', ok: false }
+      ];
+      // Fisher-Yates shuffle
+      for (var i=opts.length-1;i>0;i--) { var j=rand(i+1); var t=opts[i]; opts[i]=opts[j]; opts[j]=t; }
+      html += '<div class="mc-options">';
+      opts.forEach(function(o, idx) {
+        var letter = String.fromCharCode(65+idx);
+        html += '<button class="mc-btn" data-ok="' + (o.ok?'1':'0') + '" onclick="G.resolveIdentify(this)">'
+              + letter + ')&nbsp; ' + o.txt + '</button>';
+      });
+      html += '</div>';
+
+    } else if (type === 'write') {
+      html += '<div class="prob-question">'
+            + 'Write the equation: &nbsp;<span class="eq-var" style="font-size:1.4rem;">y</span>'
+            + '<span class="eq-op" style="font-size:1.6rem;">=</span>'
+            + '<span style="color:var(--neutral);font-size:1.2rem;">... using variable </span>'
+            + '<span class="eq-var" style="font-size:1.4rem;">x</span>'
+            + '</div>';
+      html += eqHTML(sc.coeff, sc.constant).replace('equation-box','equation-box" style="opacity:0.3;filter:blur(2px)');
+      if (sc.constant === 0) {
+        html += '<div class="example-note">&#x1F4AC; Example format: &nbsp;<strong>y = 15x</strong></div>';
+      } else {
+        html += '<div class="example-note">&#x1F4AC; Example format: &nbsp;<strong>y = 10x + 5</strong></div>';
+      }
+      html += '<div class="input-row"><input class="answer-input" type="text" id="answerInput" placeholder="y = ..." autocomplete="off" autofocus></div>';
+      html += '<div class="attempts-bar" id="attBar">Attempts: 3 remaining</div>';
+      html += '<div class="btn-row">'
+            + '<button class="btn btn-green" onclick="G.checkWrite()">&#x2713; Submit</button>'
+            + '<button class="btn btn-yellow" onclick="G.showHint()">&#x1F4A1; Hint</button>'
+            + '</div>'
+            + '<div id="hintArea"></div>';
+
+    } else { // analyze
+      var xVal = rand(10) + 1;
+      var yVal = calcY(sc.coeff, sc.constant, xVal);
+      this.analyzeAns = yVal;
+
+      html += '<div class="prob-question">Using the equation:</div>';
+      html += eqHTML(sc.coeff, sc.constant);
+      html += '<div class="prob-question">'
+            + 'If &nbsp;<span class="eq-sub" style="font-size:1.8rem;">x&nbsp;=&nbsp;' + xVal + '</span>'
+            + '&nbsp; what is the value of &nbsp;<span class="eq-var" style="font-size:1.8rem;">y</span>&nbsp;?'
+            + '</div>';
+      html += '<div class="input-row"><input class="answer-input" type="number" id="answerInput" placeholder="Enter the value of y" autofocus></div>';
+      html += '<div class="attempts-bar" id="attBar">Attempts: 3 remaining</div>';
+      html += '<div class="btn-row">'
+            + '<button class="btn btn-green" onclick="G.checkAnalyze()">&#x2713; Submit</button>'
+            + '<button class="btn btn-yellow" onclick="G.showHint()">&#x1F4A1; Hint</button>'
+            + '</div>'
+            + '<div id="hintArea"></div>';
+    }
+
+    document.getElementById('problemContent').innerHTML = html;
+    this.updateAttBar();
+
+    // Bind Enter key
+    var self = this;
+    var inp = document.getElementById('answerInput');
+    if (inp) {
+      inp.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          if (type === 'write') self.checkWrite();
+          else if (type === 'analyze') self.checkAnalyze();
+        }
+      });
+      setTimeout(function(){ inp.focus(); }, 80);
+    }
+  },
+
+  updateAttBar: function() {
+    var el = document.getElementById('attBar');
+    if (el) {
+      var rem = 3 - this.attempts;
+      var dots = '';
+      for (var i=0;i<3;i++) dots += (i < rem ? '&#x25CF;' : '&#x25CB;') + ' ';
+      el.innerHTML = 'Attempts remaining: &nbsp;' + dots;
+    }
+  },
+
+  showHint: function() {
+    if (this.hintUsed) { this.showFeedback('Hint already used!', false); return; }
+    this.hintUsed = true;
+    var ha = document.getElementById('hintArea');
+    if (ha && this.scenario) {
+      ha.innerHTML = '<div class="hint-box">&#x1F4A1; ' + this.scenario.hint + '</div>';
+    }
+    this.addLog('Hint used', 'info');
+  },
+
+  resolveIdentify: function(btn) {
+    var correct = btn.getAttribute('data-ok') === '1';
+    // Visual flash on the button
+    btn.classList.add(correct ? 'correct-flash' : 'wrong-flash');
+    setTimeout(function(){ btn.classList.remove('correct-flash','wrong-flash'); }, 600);
+    this.resolveAnswer(correct);
+  },
+
+  checkWrite: function() {
+    var inp = document.getElementById('answerInput');
+    if (!inp || !this.scenario) return;
+    var answer  = normEq(inp.value);
+    var correct = normEq(correctStr(this.scenario.coeff, this.scenario.constant));
+    if (answer === correct) {
+      this.resolveAnswer(true);
+    } else {
+      this.wrongAttempt(inp);
+    }
+  },
+
+  checkAnalyze: function() {
+    var inp = document.getElementById('answerInput');
+    if (!inp) return;
+    var val = parseFloat(inp.value);
+    if (!isNaN(val) && val === this.analyzeAns) {
+      this.resolveAnswer(true);
+    } else {
+      this.wrongAttempt(inp);
+    }
+  },
+
+  wrongAttempt: function(inp) {
+    this.attempts++;
+    if (inp) { inp.classList.add('shake'); setTimeout(function(){ inp.classList.remove('shake'); }, 450); }
+    if (this.attempts < 3) {
+      this.playWrong();
+      this.showFeedback('&#x2717; Try Again!', false);
+      if (inp) inp.value = '';
+      this.updateAttBar();
+      this.flashResult(false);
+    } else {
+      this.ch.hp = Math.max(0, this.ch.hp - 20);
+      this.ch.streak = 0;
+      this.playWrong();
+      this.showFeedback('&#x2717; Out of Attempts!', false);
+      this.addLog('Out of attempts — lost 20 HP', 'wrong');
+      this.flashResult(false);
+      this.createParticles(10, '#ff4757');
+      this.renderCharacter();
+      var self = this;
+      setTimeout(function(){ self.generateProblem(); }, 1400);
+    }
+  },
+
+  resolveAnswer: function(correct) {
+    var self = this;
+    if (correct) {
+      var dmg = 18 + rand(14);
+      this.battle.enemy.currentHp = Math.max(0, this.battle.enemy.currentHp - dmg);
+      this.ch.streak++;
+      if (this.ch.streak > this.ch.bestStreak) this.ch.bestStreak = this.ch.streak;
+      this.playCorrect();
+      this.showFeedback('&#x2713; HIT! &minus;' + dmg + ' HP', true);
+      this.addLog('Correct! Enemy takes ' + dmg + ' damage. Streak: ' + this.ch.streak, 'correct');
+      this.createParticles(28, '#00ff88');
+      this.createSparkles(20);
+      this.flashResult(true);
+      // Streak bonus display
+      if (this.ch.streak >= 3) {
+        var sd = document.getElementById('streak-display');
+        sd.innerHTML = '&#x1F525; ' + this.ch.streak + 'x STREAK!';
+        sd.style.display = 'block';
+        setTimeout(function(){ sd.style.display='none'; }, 1800);
+      }
+    } else {
+      var taken = 12 + rand(8);
+      this.ch.hp = Math.max(0, this.ch.hp - taken);
+      this.ch.streak = 0;
+      this.playWrong();
+      this.showFeedback('&#x2717; MISS! &minus;' + taken + ' HP', false);
+      this.addLog('Incorrect — you take ' + taken + ' damage', 'wrong');
+      this.createParticles(14, '#ff4757');
+      this.flashResult(false);
+    }
+    this.ch.mana = Math.max(0, this.ch.mana - 5);
+    this.battle.round++;
+    this.renderCharacter();
+    this.renderEnemy();
+
+    if (this.battle.enemy.currentHp <= 0) {
+      setTimeout(function(){ self.questVictory(); }, 600);
+    } else if (this.ch.hp <= 0) {
+      setTimeout(function(){ self.questDefeat(); }, 600);
+    } else {
+      setTimeout(function(){ self.generateProblem(); }, 900);
+    }
+  },
+
+  flashResult: function(correct) {
+    var el = document.getElementById('resultFlash');
+    el.className = 'result-flash ' + (correct ? 'flash-correct' : 'flash-wrong');
+    setTimeout(function(){ el.className = 'result-flash'; }, 450);
+  },
+
+  questVictory: function() {
+    var quest = null;
+    for (var i=0;i<this.quests.length;i++) { if (this.quests[i].id===this.curQuestId) { quest=this.quests[i]; break; } }
+    quest.completed = true;
+    this.ch.questsWon++;
+    this.ch.xp += quest.reward.xp;
+    var leveled = false;
+    while (this.ch.xp >= this.ch.xpNeeded) {
+      this.ch.xp -= this.ch.xpNeeded;
+      this.ch.level++;
+      this.ch.maxHp   += 20; this.ch.hp   = this.ch.maxHp;
+      this.ch.maxMana += 10; this.ch.mana = this.ch.maxMana;
+      this.ch.xpNeeded = Math.floor(this.ch.xpNeeded * 1.4);
+      this.ch.title    = TITLES[Math.min(this.ch.level-1, TITLES.length-1)];
+      var tier = Math.min(this.ch.level-1, EQUIPMENT_TIERS.length-1);
+      this.ch.equip.weapon = EQUIPMENT_TIERS[tier][0];
+      this.ch.equip.armor  = EQUIPMENT_TIERS[tier][1];
+      this.ch.equip.amulet = EQUIPMENT_TIERS[tier][2];
+      leveled = true;
+    }
+    if (quest.id < this.quests.length) this.quests[quest.id].locked = false;
+    this.playVictory();
+    this.createParticles(70, '#ffbe0b');
+    this.createSparkles(40);
+    var msg = 'You defeated ' + quest.enemy.name + '! ';
+    if (leveled) msg += 'You leveled up to Level ' + this.ch.level + '! ';
+    if (this.ch.bestStreak >= 3) msg += 'Best streak this quest: ' + this.ch.bestStreak + 'x! ';
+    document.getElementById('modalTitle').textContent  = quest.name + ' Complete!';
+    document.getElementById('modalEmoji').innerHTML    = '&#x1F389;';
+    document.getElementById('modalReward').textContent = '+' + quest.reward.xp + ' XP' + (leveled ? '  |  Level Up!' : '');
+    document.getElementById('modalMsg').textContent    = msg;
+    document.getElementById('resultModal').classList.add('show');
+    this.addLog('Victory! Quest complete: ' + quest.name, 'info');
+    this.renderCharacter(); this.renderQuestLog();
+  },
+
+  questDefeat: function() {
+    this.playDefeat();
+    document.getElementById('modalTitle').textContent  = 'Defeated!';
+    document.getElementById('modalEmoji').innerHTML    = '&#x1F494;';
+    document.getElementById('modalReward').textContent = 'No reward this time...';
+    document.getElementById('modalMsg').textContent    = 'You were defeated by ' + this.battle.enemy.name + '. Rest up and try again — you can do it!';
+    document.getElementById('resultModal').classList.add('show');
+    this.addLog('Defeated by ' + this.battle.enemy.name, 'wrong');
+    var self = this;
+    setTimeout(function(){ document.getElementById('resultModal').classList.remove('show'); self.startQuest(self.curQuestId); }, 2800);
+  },
+
+  nextQuest: function() {
+    document.getElementById('resultModal').classList.remove('show');
+    var next = null;
+    for (var i=0;i<this.quests.length;i++) {
+      if (!this.quests[i].completed && !this.quests[i].locked) { next=this.quests[i]; break; }
+    }
+    if (next) this.startQuest(next.id);
+    else {
+      document.getElementById('modalTitle').textContent  = 'All Quests Complete!';
+      document.getElementById('modalEmoji').innerHTML    = '&#x1F3C6;';
+      document.getElementById('modalReward').textContent = 'You are a Legendary Mathematician!';
+      document.getElementById('modalMsg').textContent    = 'You have mastered all 6.EE.C.9 equations. Outstanding work, ' + this.ch.name + '!';
+      document.getElementById('resultModal').classList.add('show');
+    }
+  },
+
+  // ── Particles ─────────────────────────────────────────────
+  showFeedback: function(html, correct) {
+    var el = document.createElement('div');
+    el.className = 'feedback-pop ' + (correct ? 'feed-correct' : 'feed-wrong');
+    el.innerHTML = html;
+    document.body.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 900);
+  },
+
+  createParticles: function(n, color) {
+    for (var i=0;i<n;i++) {
+      var p = document.createElement('div');
+      p.className = 'particle';
+      var sz = Math.random()*10+4;
+      p.style.cssText = 'left:'+(window.innerWidth/2)+'px;top:'+(window.innerHeight/2)+'px;'
+        +'width:'+sz+'px;height:'+sz+'px;background:'+color+';';
+      document.body.appendChild(p);
+      var dist=Math.random()*160+60, angle=(Math.PI*2*i)/n, dur=Math.random()*1.1+0.5;
+      if (typeof gsap!=='undefined') {
+        gsap.to(p,{x:Math.cos(angle)*dist,y:Math.sin(angle)*dist,opacity:0,duration:dur,ease:'power2.out',onComplete:function(){p.remove();}});
+      } else { setTimeout(function(){p.remove();},1200); }
+    }
+  },
+
+  createSparkles: function(n) {
+    for (var i=0;i<n;i++) {
+      var s = document.createElement('div');
+      s.className = 'particle';
+      s.style.cssText = 'left:'+(window.innerWidth/2)+'px;top:'+(window.innerHeight/2)+'px;border-radius:0;font-size:1.4rem;';
+      s.textContent = '\u2728';
+      document.body.appendChild(s);
+      var dist=Math.random()*190+80, angle=Math.random()*Math.PI*2, dur=Math.random()*1.4+0.9;
+      if (typeof gsap!=='undefined') {
+        gsap.to(s,{x:Math.cos(angle)*dist,y:Math.sin(angle)*dist,opacity:0,scale:0.5,rotation:rand(360),duration:dur,ease:'power2.out',onComplete:function(){s.remove();}});
+      } else { setTimeout(function(){s.remove();},1500); }
+    }
+  }
+};
+
+// ── Wire up buttons ──────────────────────────────────────────
+document.getElementById('startBtn').addEventListener('click', function(){ G.startWithName(); });
+document.getElementById('nameInput').addEventListener('keypress', function(e){ if(e.key==='Enter') G.startWithName(); });
+document.getElementById('continueBtn').addEventListener('click', function(){ G.nextQuest(); });
+document.getElementById('nameInput').focus();
+</script>
+</body>
+</html>
