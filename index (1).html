@@ -637,30 +637,40 @@ const game = {
   generateProblem() {
     this.currentAttempts = 0;
     this.hintUsed = false;
-    
+
     const quest = this.currentBattle.quest;
     const scenariosOfDifficulty = quest.scenarios.filter(s => s.difficulty === Math.min(this.currentBattle.round + 1, 4));
-    const scenario = scenariosOfDifficulty.length > 0 ? scenariosOfDifficulty[Math.floor(Math.random() * scenariosOfDifficulty.length)] : quest.scenarios[Math.floor(Math.random() * quest.scenarios.length)];
-    
+    const scenario = scenariosOfDifficulty.length > 0
+      ? scenariosOfDifficulty[Math.floor(Math.random() * scenariosOfDifficulty.length)]
+      : quest.scenarios[Math.floor(Math.random() * quest.scenarios.length)];
+
     const problemTypes = ['identify', 'write', 'analyze'];
     const type = problemTypes[Math.floor(Math.random() * problemTypes.length)];
-    
+
     let html = `<div class="problem-context">📚 ${scenario.context}</div>`;
     let yVal = 0;
 
     if (type === 'identify') {
       html += `<div class="problem-text">Which correctly identifies the independent variable (x) and the dependent variable (y)?</div>`;
+
+      // ✅ FIX: true correct option is stable, even after shuffle
+      const correctOpt =
+        `Independent variable (x): ${scenario.independent} | Dependent variable (y): ${scenario.dependent}`;
+
       const options = [
-        `Independent variable (x): ${scenario.independent} | Dependent variable (y): ${scenario.dependent}`,
+        correctOpt,
         `Independent variable (x): ${scenario.dependent} | Dependent variable (y): ${scenario.independent}`,
         'Both are independent variables'
       ].sort(() => Math.random() - 0.5);
-      
+
       html += '<div class="input-group" style="flex-direction: column; align-items: center;">';
       options.forEach((opt, idx) => {
-        html += `<button onclick="game.checkAnswer('${scenario.independent}/${scenario.dependent}', ${opt === options[0]})">${String.fromCharCode(65 + idx)}) ${opt}</button>`;
+        const isCorrect = (opt === correctOpt);
+        // ✅ FIX: MC uses btn-mc styling + correctness tied to correctOpt
+        html += `<button class="btn-mc" onclick="game.checkAnswer(true, ${isCorrect})">${String.fromCharCode(65 + idx)}) ${opt}</button>`;
       });
       html += '</div>';
+
     } else if (type === 'write') {
       html += `<div class="problem-text">Write the equation where y equals the expression with the variable x</div>`;
       html += `<div class="problem-text" style="font-size: 0.95rem; color: rgba(255,255,255,0.8);">(For example: y = 15x or y = 10x+5)</div>`;
@@ -671,11 +681,12 @@ const game = {
       html += `<button class="btn-hint" onclick="game.showHint('${scenario.hint}')">💡 Hint</button>`;
       html += `</div>`;
       html += `<div id="hintArea"></div>`;
+
     } else if (type === 'analyze') {
       const x = Math.floor(Math.random() * 10) + 1;
       const expression = scenario.expression.replace(/\s/g, '');
       yVal = calcY(expression, x);
-      
+
       html += `<div class="problem-text">Using the equation: y = ${scenario.expression}</div>`;
       html += `<div class="problem-text">If the variable x = ${x}, what is the value of y?</div>`;
       html += `<div class="input-group"><input type="number" id="answerInput" placeholder="Enter the number" autofocus></div>`;
@@ -724,24 +735,27 @@ const game = {
   checkEquation(correct) {
     const input = document.getElementById('answerInput').value;
     const isCorrect = this.normalizeAnswer(input) === this.normalizeAnswer(correct);
+
     if (isCorrect) {
-      this.checkAnswer(correct, input);
+      // ✅ FIX: do NOT re-compare strings in checkAnswer(); pass boolean
+      this.checkAnswer(true, true);
+      return;
+    }
+
+    this.currentAttempts++;
+    if (this.currentAttempts < 3) {
+      this.playSound(300, 0.2);
+      this.showFeedback('✗ Try again!', 'incorrect');
+      document.getElementById('answerInput').value = '';
+      this.updateAttemptsDisplay();
     } else {
-      this.currentAttempts++;
-      if (this.currentAttempts < 3) {
-        this.playSound(300, 0.2);
-        this.showFeedback('✗ Try again!', 'incorrect');
-        document.getElementById('answerInput').value = '';
-        this.updateAttemptsDisplay();
-      } else {
-        this.character.hp -= 20;
-        this.playSound(150, 0.3);
-        this.showFeedback('✗ Out of attempts!', 'incorrect');
-        this.createParticles(8, 'rgb(255, 71, 87)');
-        this.renderBattle();
-        this.renderCharacter();
-        setTimeout(() => this.generateProblem(), 1200);
-      }
+      this.character.hp -= 20;
+      this.playSound(150, 0.3);
+      this.showFeedback('✗ Out of attempts!', 'incorrect');
+      this.createParticles(8, 'rgb(255, 71, 87)');
+      this.renderBattle();
+      this.renderCharacter();
+      setTimeout(() => this.generateProblem(), 1200);
     }
   },
 
@@ -770,7 +784,10 @@ const game = {
   },
 
   async checkAnswer(correct, answer) {
-    const isCorrect = (typeof answer === 'boolean') ? answer : (String(answer).toLowerCase().replace(/\s/g, '') === String(correct).toLowerCase().replace(/\s/g, ''));
+    const isCorrect = (typeof answer === 'boolean')
+      ? answer
+      : (String(answer).toLowerCase().replace(/\s/g, '') === String(correct).toLowerCase().replace(/\s/g, ''));
+
     if (isCorrect) {
       this.currentBattle.enemy.currentHp -= 20 + Math.floor(Math.random() * 15);
       this.playSound(800, 0.25);
@@ -783,12 +800,12 @@ const game = {
       this.showFeedback('✗ MISS!', 'incorrect');
       this.createParticles(12, 'rgb(255, 71, 87)');
     }
-    
+
     this.character.mana = Math.max(0, this.character.mana - 5);
     this.currentBattle.round++;
     this.renderBattle();
     this.renderCharacter();
-    
+
     if (this.currentBattle.enemy.currentHp <= 0) {
       await this.questVictory();
     } else if (this.character.hp <= 0) {
@@ -803,7 +820,7 @@ const game = {
     quest.completed = true;
     this.character.questsWon++;
     this.character.xp += quest.reward.xp;
-    
+
     while (this.character.xp >= this.character.xpNeeded) {
       this.character.xp -= this.character.xpNeeded;
       this.character.level++;
@@ -813,20 +830,20 @@ const game = {
       this.character.mana = this.character.maxMana;
       this.levelUpCharacter();
     }
-    
+
     if (quest.id < 4) {
       this.quests[quest.id].locked = false;
     }
-    
+
     this.playSound(1200, 0.6);
     this.createParticles(60, 'rgb(255, 190, 11)');
     this.createSparkles(50);
-    
+
     document.getElementById('modalTitle').textContent = `${quest.name} Complete!`;
     document.getElementById('modalEmoji').textContent = '🎉';
     document.getElementById('modalReward').textContent = `+${quest.reward.xp} XP${quest.reward.levelUp ? ', Level Up!' : ''}`;
     document.getElementById('modalMessage').textContent = `You defeated ${quest.enemy.name}! Your mastery of equations grows stronger.`;
-    
+
     this.showModal();
     this.renderCharacter();
     this.renderQuestLog();
@@ -838,7 +855,7 @@ const game = {
     document.getElementById('modalEmoji').textContent = '💔';
     document.getElementById('modalReward').textContent = '';
     document.getElementById('modalMessage').textContent = `You were defeated by ${this.currentBattle.enemy.name}. Recover and try again!`;
-    
+
     this.showModal();
     setTimeout(() => this.startQuest(this.currentQuestId), 2000);
   },
@@ -846,7 +863,7 @@ const game = {
   levelUpCharacter() {
     const titles = ['Equation Novice', 'Equation Student', 'Equation Adept', 'Equation Master', 'Legendary Mathematician'];
     this.character.title = titles[Math.min(this.character.level - 1, titles.length - 1)];
-    
+
     const equipment = [
       [
         { name: 'Iron Sword', bonus: '+2 Accuracy', icon: '⚔️' },
@@ -864,7 +881,7 @@ const game = {
         { name: 'Master Amulet', bonus: '+50 XP', icon: '👑' }
       ]
     ];
-    
+
     if (this.character.level <= 3) {
       this.character.equipment.weapon = equipment[this.character.level - 1][0];
       this.character.equipment.armor = equipment[this.character.level - 1][1];
@@ -899,13 +916,13 @@ const game = {
       particle.style.borderRadius = '50%';
       particle.style.opacity = '1';
       document.body.appendChild(particle);
-      
+
       const duration = Math.random() * 1.2 + 0.6;
       const distance = Math.random() * 150 + 50;
       const angle = (Math.PI * 2 * i) / count;
       const tx = Math.cos(angle) * distance;
       const ty = Math.sin(angle) * distance;
-      
+
       gsap.to(particle, {
         x: tx, y: ty, opacity: 0, duration: duration, ease: 'power2.out',
         onComplete: () => particle.remove()
@@ -923,13 +940,13 @@ const game = {
       sparkle.style.fontSize = '1.5rem';
       sparkle.style.borderRadius = '0';
       document.body.appendChild(sparkle);
-      
+
       const duration = Math.random() * 1.5 + 1;
       const distance = Math.random() * 200 + 80;
       const angle = Math.random() * Math.PI * 2;
       const tx = Math.cos(angle) * distance;
       const ty = Math.sin(angle) * distance;
-      
+
       gsap.to(sparkle, {
         x: tx, y: ty, opacity: 0, scale: 0.5, rotation: Math.random() * 360,
         duration: duration, ease: 'power2.out',
