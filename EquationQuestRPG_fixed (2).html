@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Equation Quest RPG — 6.EE.C.9</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Tone.js/14.8.49/Tone.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #00d4ff; --secondary: #ff006e; --accent: #ffbe0b;
+  --success: #00ff88; --danger: #ff4757; --warning: #ffa502; --neutral: #9fb3d5;
+}
+body {
+  font-family: 'Courier New', monospace;
+  background: linear-gradient(135deg, #4a5f8f 0%, #3a4f7f 50%, #2a3f6f 100%);
+  color: var(--primary); min-height: 100vh; overflow: hidden;
+}
+.background-container { position: fixed; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+.stars-layer {
+  position: absolute; width:100%; height:100%;
+  background: radial-gradient(2px 2px at 20px 30px, white, rgba(255,255,255,0.2)),
+              radial-gradient(2px 2px at 60px 70px, white, rgba(255,255,255,0.1)),
+              radial-gradient(1px 1px at 50px 50px, white, rgba(255,255,255,0.15)),
+              radial-gradient(1px 1px at 130px 80px, white, rgba(255,255,255,0.2));
+  background-repeat: repeat; background-size: 200px 200px; animation: twinkle 3s infinite;
+}
+@keyframes twinkle { 0%,100%{opacity:0.5} 50%{opacity:1} }
+.nebula-layer {
+  position:absolute; width:100%; height:100%;
+  background: radial-gradient(ellipse at 20% 50%, rgba(255,0,110,0.1) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 80%, rgba(0,212,255,0.08) 0%, transparent 50%);
+  animation: nebulaPulse 8s ease-in-out infinite;
+}
+@keyframes nebulaPulse { 0%,100%{opacity:0.3} 50%{opacity:0.6} }
+.grid-layer {
+  position:absolute; width:100%; height:100%;
+  background-image:
+    linear-gradient(0deg, transparent 24%, rgba(0,212,255,0.03) 25%, rgba(0,212,255,0.03) 26%, transparent 27%),
+    linear-gradient(90deg, transparent 24%, rgba(0,212,255,0.03) 25%, rgba(0,212,255,0.03) 26%, transparent 27%);
+  background-size:80px 80px; animation: gridScroll 60s linear infinite;
+}
+@keyframes gridScroll { 0%{transform:translateY(0)} 100%{transform:translateY(80px)} }
+
+.container { position:relative; z-index:1; width:100%; height:100vh; display:flex; gap:20px; padding:20px; overflow:hidden; }
+
+/* CHARACTER PANEL */
+.character-panel {
+  width:280px; background:rgba(42,58,90,0.92); border:2px solid var(--primary);
+  border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:15px;
+  overflow-y:auto; backdrop-filter:blur(10px);
+}
+.char-header { text-align:center; border-bottom:2px solid var(--primary); padding-bottom:15px; }
+.char-avatar-container { font-size:3.5rem; margin-bottom:12px; animation:characterBob 3s ease-in-out infinite; }
+@keyframes characterBob {
+  0%,100%{transform:translateY(0)} 25%{transform:translateY(-8px)} 75%{transform:translateY(-8px)}
+}
+.char-name { font-size:1.3rem; color:var(--accent); font-weight:bold; margin-bottom:5px; }
+.char-title { font-size:0.75rem; color:var(--neutral); text-transform:uppercase; letter-spacing:2px; font-weight:bold; }
+.stat-row { display:flex; justify-content:space-between; align-items:center; padding:12px; background:rgba(0,212,255,0.1); border:1.5px solid rgba(0,212,255,0.3); border-radius:6px; }
+.stat-label { color:var(--accent); text-transform:uppercase; font-size:0.65rem; font-weight:bold; letter-spacing:1px; }
+.stat-value { color:var(--primary); font-size:1.1rem; font-weight:bold; }
+.hp-bar,.xp-bar,.mana-bar { width:100%; height:18px; background:rgba(0,0,0,0.4); border:1.5px solid var(--primary); border-radius:10px; overflow:hidden; margin-top:5px; }
+.hp-bar-fill   { height:100%; background:linear-gradient(90deg,#ff4757,#ff7675); width:100%; transition:width 0.5s; }
+.xp-bar-fill   { height:100%; background:linear-gradient(90deg,var(--primary),var(--accent)); width:0%; transition:width 0.6s; }
+.mana-bar-fill { height:100%; background:linear-gradient(90deg,#6c5ce7,#0984e3); width:100%; transition:width 0.5s; }
+.inventory { border:1.5px solid var(--secondary); padding:12px; border-radius:8px; background:rgba(255,0,110,0.08); }
+.inventory-title { font-size:0.7rem; color:var(--secondary); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:10px; font-weight:bold; }
+.equipment-slot { display:flex; align-items:center; padding:8px; margin-bottom:8px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,0,110,0.4); border-radius:4px; }
+.slot-icon { font-size:1.3rem; }
+.slot-name { color:var(--primary); flex:1; margin:0 8px; font-size:0.75rem; }
+.slot-bonus { color:var(--success); font-size:0.65rem; font-weight:bold; }
+
+/* GAME AREA */
+.game-area { flex:1; display:flex; flex-direction:column; gap:15px; }
+.battle-panel {
+  flex:1; background:rgba(42,58,90,0.92); border:2px solid var(--secondary);
+  border-radius:12px; padding:30px; display:flex; flex-direction:column;
+  justify-content:center; align-items:center; gap:20px; position:relative; overflow:hidden;
+  backdrop-filter:blur(10px);
+}
+.battle-panel::before {
+  content:''; position:absolute; top:0; left:0; width:100%; height:100%;
+  background:radial-gradient(ellipse at center, rgba(255,0,110,0.08) 0%, transparent 70%);
+  pointer-events:none; animation:radialPulse 4s ease-in-out infinite;
+}
+@keyframes radialPulse { 0%,100%{opacity:0.3} 50%{opacity:0.6} }
+.quest-info { text-align:center; border-bottom:2px solid var(--secondary); padding-bottom:15px; position:relative; z-index:2; width:100%; }
+.quest-name { font-size:1.2rem; color:var(--secondary); font-weight:bold; margin-bottom:8px; letter-spacing:1px; }
+.quest-desc { font-size:0.9rem; color:var(--neutral); }
+.battle-scene { display:flex; justify-content:space-around; align-items:center; width:100%; gap:50px; position:relative; z-index:2; }
+.combatant { display:flex; flex-direction:column; align-items:center; gap:10px; }
+.combatant-avatar { font-size:5rem; animation:combatantFloat 2.5s ease-in-out infinite; }
+@keyframes combatantFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
+.combatant-name { font-size:1rem; color:var(--primary); font-weight:bold; }
+.health-info { font-size:0.85rem; color:var(--accent); font-weight:bold; }
+.combatant-hp { width:200px; height:22px; background:rgba(0,0,0,0.5); border:1.5px solid #ff4757; border-radius:10px; overflow:hidden; }
+.combatant-hp-fill { height:100%; background:linear-gradient(90deg,#ff4757,#ff7675); width:100%; transition:width 0.5s; }
+.vs-text { font-size:2.5rem; color:var(--danger); font-weight:bold; animation:vsPulse 1s ease-in-out infinite; }
+@keyframes vsPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+
+/* PROBLEM AREA */
+.problem-area {
+  background:rgba(0,0,0,0.5); border:3px solid var(--primary); border-radius:12px;
+  padding:28px 30px; width:100%; max-width:700px; position:relative; z-index:2;
+  backdrop-filter:blur(8px);
+}
+.problem-context {
+  background:rgba(255,190,11,0.18); border-left:6px solid var(--accent);
+  padding:14px 18px; margin-bottom:20px; border-radius:8px;
+  font-size:1.4rem; font-weight:800; color:#fff; line-height:1.4;
+}
+.problem-text {
+  font-size:1.4rem; font-weight:700; color:#fff;
+  margin-bottom:14px; line-height:1.6;
+}
+.equation-line {
+  display:flex; align-items:center; justify-content:center;
+  gap:8px; flex-wrap:wrap; margin:16px 0;
+  background:rgba(0,0,0,0.3); border-radius:10px; padding:14px;
+}
+.eq-var { color:var(--primary);  font-size:2.4rem; font-weight:900; }
+.eq-op  { color:var(--accent);   font-size:2.6rem; font-weight:900; padding:0 6px; text-shadow:0 0 16px rgba(255,190,11,0.8); }
+.eq-num { color:#fff;            font-size:2.4rem; font-weight:900; }
+.eq-sub { color:var(--success);  font-size:2.4rem; font-weight:900; }
+.hint-box {
+  background:rgba(100,200,255,0.15); border-left:5px solid var(--primary);
+  padding:14px 18px; margin-top:14px; border-radius:8px;
+  font-size:1.1rem; color:#fff; font-style:italic; line-height:1.5;
+}
+.attempts-indicator { font-size:1.05rem; color:var(--warning); margin-bottom:12px; font-weight:bold; text-align:center; }
+.input-group { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; justify-content:center; }
+input {
+  padding:14px 18px; border:2px solid var(--primary); background:rgba(0,0,0,0.6);
+  color:#fff; font-family:'Courier New'; font-size:1.4rem; border-radius:8px; min-width:200px; transition:all 0.3s;
+}
+input:focus { outline:none; box-shadow:0 0 20px rgba(0,212,255,0.6); background:rgba(0,0,0,0.75); }
+.action-buttons { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+button {
+  padding:13px 26px; border:2px solid var(--primary); background:rgba(0,212,255,0.12);
+  color:var(--primary); font-family:'Courier New'; font-weight:bold; font-size:1rem;
+  cursor:pointer; border-radius:8px; transition:all 0.3s; text-transform:uppercase; letter-spacing:1px;
+}
+button:hover { background:rgba(0,212,255,0.25); box-shadow:0 0 20px rgba(0,212,255,0.5); transform:translateY(-2px); }
+.btn-success { border-color:var(--success); color:var(--success); }
+.btn-success:hover { background:rgba(0,255,136,0.2); }
+.btn-hint { border-color:var(--warning); color:var(--warning); }
+.btn-hint:hover { background:rgba(255,165,2,0.2); }
+.mc-btn {
+  font-size:1.1rem !important; padding:14px 20px !important;
+  text-align:left !important; text-transform:none !important;
+  letter-spacing:0 !important; width:100% !important; max-width:600px !important;
+  white-space:normal !important; line-height:1.5 !important; margin-bottom:8px !important;
+}
+
+/* QUEST LOG */
+.quest-log {
+  width:280px; background:rgba(42,58,90,0.92); border:2px solid var(--accent);
+  border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:12px;
+  overflow-y:auto; backdrop-filter:blur(10px);
+}
+.log-title { font-size:0.8rem; color:var(--accent); text-transform:uppercase; letter-spacing:2px; font-weight:bold; border-bottom:1.5px solid var(--accent); padding-bottom:12px; }
+.quest-item { padding:12px; background:rgba(0,212,255,0.1); border:1.5px solid rgba(255,190,11,0.35); border-radius:6px; cursor:pointer; transition:all 0.3s; font-size:0.85rem; }
+.quest-item:hover { background:rgba(255,190,11,0.15); border-color:var(--accent); transform:translateX(4px); }
+.quest-item.active { background:rgba(255,190,11,0.2); border-color:var(--accent); box-shadow:0 0 12px rgba(255,190,11,0.4); }
+.quest-item.completed { opacity:0.6; border-color:var(--success); }
+.quest-item-name { color:var(--primary); font-weight:bold; margin-bottom:5px; }
+.quest-item-status { font-size:0.75rem; color:var(--neutral); }
+.quest-item-reward { font-size:0.75rem; color:var(--success); margin-top:4px; font-weight:bold; }
+
+/* FEEDBACK & EFFECTS */
+.feedback { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); font-size:3.5rem; font-weight:bold; z-index:100; animation:feedbackPop 0.8s forwards; pointer-events:none; }
+@keyframes feedbackPop { 0%{opacity:1;transform:translate(-50%,-50%) scale(0.2)} 100%{opacity:0;transform:translate(-50%,-50%) scale(2.2)} }
+.feedback.correct { color:var(--success); }
+.feedback.incorrect { color:var(--danger); }
+.particle { position:fixed; pointer-events:none; z-index:50; }
+
+/* MODALS */
+.modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:200; align-items:center; justify-content:center; backdrop-filter:blur(5px); }
+.modal-overlay.active { display:flex; }
+.modal { background:linear-gradient(135deg,rgba(42,58,90,0.97),rgba(61,79,122,0.97)); border:2px solid var(--primary); border-radius:14px; padding:40px; max-width:520px; text-align:center; }
+.modal-title { font-size:2.2rem; color:var(--success); margin-bottom:15px; font-weight:bold; }
+.modal-reward { font-size:1.3rem; color:var(--accent); margin:20px 0; font-weight:bold; }
+.name-modal { background:linear-gradient(135deg,rgba(42,58,90,0.97),rgba(61,79,122,0.97)); border:2px solid var(--primary); border-radius:14px; padding:45px; max-width:480px; text-align:center; }
+.name-modal h2 { font-size:2rem; color:var(--primary); margin-bottom:12px; }
+.name-modal p { color:var(--neutral); margin-bottom:24px; font-size:1rem; line-height:1.5; }
+.name-modal input { width:100%; max-width:320px; margin-bottom:20px; font-size:1.1rem; }
+
+@media (max-width:1200px) { .container{flex-direction:column;gap:15px;} .character-panel,.quest-log{width:100%;max-height:140px;} }
+@media (max-width:768px) { .container{padding:10px;} .character-panel,.quest-log{display:none;} .battle-scene{flex-direction:column;gap:20px;} }
+::-webkit-scrollbar{width:8px} ::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.3);border-radius:4px}
+</style>
+</head>
+<body>
+<div class="background-container">
+  <div class="stars-layer"></div>
+  <div class="nebula-layer"></div>
+  <div class="grid-layer"></div>
+</div>
+
+<div class="container">
+  <div class="character-panel">
+    <div class="char-header">
+      <div class="char-avatar-container" id="charAvatar">&#x1F9D9;</div>
+      <div class="char-name" id="charName">Scholar</div>
+      <div class="char-title" id="charTitle">Equation Novice</div>
+    </div>
+    <div class="stat-row">
+      <div>
+        <div class="stat-label">Level</div>
+        <div class="stat-value" id="levelDisplay">1</div>
+      </div>
+      <div style="flex:1;margin-left:10px;">
+        <div class="stat-label">Experience</div>
+        <div class="xp-bar"><div class="xp-bar-fill" id="xpBar"></div></div>
+      </div>
+    </div>
+    <div class="stat-row" style="flex-direction:column;align-items:flex-start;">
+      <div class="stat-label">Health</div>
+      <div style="width:100%;display:flex;align-items:center;gap:8px;">
+        <div class="hp-bar" style="flex:1;"><div class="hp-bar-fill" id="playerHpBar"></div></div>
+        <span class="stat-value" id="hpDisplay">100/100</span>
+      </div>
+    </div>
+    <div class="stat-row" style="flex-direction:column;align-items:flex-start;">
+      <div class="stat-label">Mana</div>
+      <div style="width:100%;display:flex;align-items:center;gap:8px;">
+        <div class="mana-bar" style="flex:1;"><div class="mana-bar-fill" id="manaBar"></div></div>
+        <span class="stat-value" id="manaDisplay">50/50</span>
+      </div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-label">Quests Won</div>
+      <div class="stat-value" id="questsWon">0</div>
+    </div>
+    <div class="inventory">
+      <div class="inventory-title">&#x2694;&#xFE0F; Equipment</div>
+      <div class="equipment-slot">
+        <span class="slot-icon">&#x1F5E1;&#xFE0F;</span>
+        <span class="slot-name" id="weaponName">Wooden Sword</span>
+        <span class="slot-bonus" id="weaponBonus">+1</span>
+      </div>
+      <div class="equipment-slot">
+        <span class="slot-icon">&#x1F6E1;&#xFE0F;</span>
+        <span class="slot-name" id="armorName">Cloth Armor</span>
+        <span class="slot-bonus" id="armorBonus">+1</span>
+      </div>
+      <div class="equipment-slot">
+        <span class="slot-icon">&#x1F48E;</span>
+        <span class="slot-name" id="amuletName">Novice Amulet</span>
+        <span class="slot-bonus" id="amuletBonus">+5 XP</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="game-area">
+    <div class="battle-panel">
+      <div class="quest-info">
+        <div class="quest-name" id="questName">Academy Trial</div>
+        <div class="quest-desc" id="questDesc">Defeat the equation guardian to prove your mastery</div>
+      </div>
+      <div class="battle-scene">
+        <div class="combatant">
+          <div class="combatant-avatar" id="playerAvatar">&#x1F9D9;</div>
+          <div class="combatant-name" id="playerCombatantName">You</div>
+          <div class="health-info"><span id="playerBattleHp">100</span> / 100 HP</div>
+          <div class="combatant-hp"><div class="combatant-hp-fill" id="playerBattleHpBar"></div></div>
+        </div>
+        <div class="vs-text">&#x2694;&#xFE0F;</div>
+        <div class="combatant">
+          <div class="combatant-avatar" id="enemyAvatar">&#x1F916;</div>
+          <div class="combatant-name" id="enemyName">Equation Guardian</div>
+          <div class="health-info"><span id="enemyHp">50</span> / 50 HP</div>
+          <div class="combatant-hp"><div class="combatant-hp-fill" id="enemyHpBar"></div></div>
+        </div>
+      </div>
+      <div class="problem-area" id="problemArea"></div>
+    </div>
+  </div>
+
+  <div class="quest-log">
+    <div class="log-title">&#x1F4DC; Quest Log</div>
+    <div id="questsList"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Victory!</div>
+    <div style="font-size:3.5rem;margin:20px 0;" id="modalEmoji">&#x1F389;</div>
+    <div class="modal-reward" id="modalReward">+250 XP</div>
+    <div style="font-size:1rem;color:var(--neutral);line-height:1.6;margin:20px 0;" id="modalMessage"></div>
+    <button class="btn-success" id="continueBtn" style="margin-top:20px;">Continue Adventure &#x2192;</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="nameModalOverlay" style="display:flex;">
+  <div class="name-modal">
+    <h2>&#x2694;&#xFE0F; Equation Quest RPG</h2>
+    <p>What is your character's name, brave scholar?</p>
+    <input type="text" id="nameInput" placeholder="Enter your name..." maxlength="20">
+    <button class="btn-success" id="startBtn" style="width:100%;margin-top:15px;">Begin Quest &#x2192;</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  // ── Pure arithmetic: no eval, no string parsing ──────────────────
+  function calcY(coeff, constant, xVal) {
+    return coeff * xVal + constant;
+  }
+
+  // Build styled equation HTML
+  function eqHTML(coeff, constant) {
+    var inner = '<span class="eq-var">y</span>'
+              + '<span class="eq-op">=</span>'
+              + '<span class="eq-num">' + coeff + '</span>'
+              + '<span class="eq-var">x</span>';
+    if (constant !== 0) {
+      inner += '<span class="eq-op">+</span>'
+             + '<span class="eq-num">' + constant + '</span>';
+    }
+    return '<div class="equation-line">' + inner + '</div>';
+  }
+
+  // Normalize user equation input for comparison
+  // Strips spaces, "y=", and "*"; accepts "15x", "15*x", "y=15x", etc.
+  function normalizeEq(s) {
+    return s.toLowerCase()
+            .replace(/\s/g, '')
+            .replace(/y=/g, '')
+            .replace(/\*/g, '');
+  }
+
+  // Canonical correct string
+  function correctStr(coeff, constant) {
+    return constant === 0 ? (coeff + 'x') : (coeff + 'x+' + constant);
+  }
+
+  // ── Game data ─────────────────────────────────────────────────────
+  var game = {
+    character: {
+      name:'Scholar', title:'Equation Novice', avatar:'&#x1F9D9;',
+      level:1, xp:0, xpNeeded:100,
+      maxHp:100, hp:100, maxMana:50, mana:50, questsWon:0,
+      equipment: {
+        weapon:{ name:'Wooden Sword', bonus:'+1 Accuracy' },
+        armor: { name:'Cloth Armor',  bonus:'+1 Defense'  },
+        amulet:{ name:'Novice Amulet',bonus:'+5 XP'       }
+      }
+    },
+
+    quests: [
+      { id:1, name:'Academy Trial', desc:'Defeat the equation guardian to prove your mastery',
+        difficulty:1, enemy:{ name:'Equation Guardian', hp:50, avatar:'&#x1F916;' },
+        reward:{ xp:250, levelUp:false }, completed:false,
+        scenarios:[
+          { context:'Pizza Pricing: Each pizza costs $15',
+            independent:'Pizzas (x)', dependent:'Total Cost (y)',
+            coeff:15, constant:0, difficulty:1,
+            hint:'Cost = Price x Quantity. Each pizza is $15, so y = 15x' },
+          { context:'Concert Tickets: Each ticket costs $25',
+            independent:'Tickets (x)', dependent:'Total Spent (y)',
+            coeff:25, constant:0, difficulty:1,
+            hint:'Total Spent = $25 x number of tickets. So y = 25x' },
+          { context:'Movie Snacks: Each snack costs $8',
+            independent:'Snacks (x)', dependent:'Total Spent (y)',
+            coeff:8, constant:0, difficulty:1,
+            hint:'Multiply $8 by the number of snacks. So y = 8x' }
+        ]
+      },
+      { id:2, name:'Chamber of Relationships', desc:'Master the art of dependent variables',
+        difficulty:2, enemy:{ name:'Variable Wraith', hp:75, avatar:'&#x1F300;' },
+        reward:{ xp:400, levelUp:true }, completed:false, locked:true,
+        scenarios:[
+          { context:'Lemonade Stand: Each cup sells for $2',
+            independent:'Cups (x)', dependent:'Money Earned (y)',
+            coeff:2, constant:0, difficulty:2,
+            hint:'Money earned = $2 x cups sold. So y = 2x' },
+          { context:'Garden Plants: Each row needs 8 plants',
+            independent:'Rows (x)', dependent:'Plants Needed (y)',
+            coeff:8, constant:0, difficulty:2,
+            hint:'Total plants = 8 x rows. So y = 8x' },
+          { context:'Book Rental: Each book costs $4',
+            independent:'Books (x)', dependent:'Cost (y)',
+            coeff:4, constant:0, difficulty:2,
+            hint:'Cost = $4 x number of books. So y = 4x' }
+        ]
+      },
+      { id:3, name:'The Coefficient Tower', desc:'Face equations with coefficients and constants',
+        difficulty:3, enemy:{ name:'Coefficient Dragon', hp:100, avatar:'&#x1F409;' },
+        reward:{ xp:600, levelUp:true }, completed:false, locked:true,
+        scenarios:[
+          { context:'Bike Rental: $10 per hour PLUS a $5 deposit fee',
+            independent:'Hours (x)', dependent:'Total Cost (y)',
+            coeff:10, constant:5, difficulty:3,
+            hint:'Total cost = (10 x hours) + 5. So y = 10x + 5' },
+          { context:'Book Club: $3 per book PLUS $20 membership fee',
+            independent:'Books (x)', dependent:'Total Spent (y)',
+            coeff:3, constant:20, difficulty:3,
+            hint:'Total spent = (3 x books) + 20. So y = 3x + 20' },
+          { context:'Gym Membership: $30 per month PLUS a $50 sign-up fee',
+            independent:'Months (x)', dependent:'Total Cost (y)',
+            coeff:30, constant:50, difficulty:3,
+            hint:'Total cost = (30 x months) + 50. So y = 30x + 50' }
+        ]
+      },
+      { id:4, name:'Final Exam: The Equation Master', desc:'Defeat the ultimate guardian',
+        difficulty:4, enemy:{ name:'The Equation Lord', hp:150, avatar:'&#x1F451;' },
+        reward:{ xp:1000, levelUp:true }, completed:false, locked:true,
+        scenarios:[
+          { context:'Business Profit: $15 per item sold PLUS $30 startup cost',
+            independent:'Items Sold (x)', dependent:'Profit (y)',
+            coeff:15, constant:30, difficulty:4,
+            hint:'Profit = (15 x items) + 30. So y = 15x + 30' },
+          { context:'Streaming Service: $12 per month PLUS a $25 device fee',
+            independent:'Months (x)', dependent:'Total Cost (y)',
+            coeff:12, constant:25, difficulty:4,
+            hint:'Total cost = (12 x months) + 25. So y = 12x + 25' }
+        ]
+      }
+    ],
+
+    currentQuestId:1, currentBattle:null, currentAttempts:0,
+    hintUsed:false, synth:null, synthInit:false,
+    // Store current scenario for use in check functions (avoids inline data passing)
+    _scenario: null, _analyzeAnswer: null,
+
+    // ── Audio ────────────────────────────────────────────────────────
+    initAudio: function() {
+      if (!this.synthInit && typeof Tone !== 'undefined') {
+        try {
+          this.synth = new Tone.Synth({
+            oscillator:{type:'square'},
+            envelope:{attack:0.005,decay:0.1,sustain:0,release:0.1}
+          }).toDestination();
+          this.synthInit = true;
+        } catch(e) {}
+      }
+    },
+    playSound: function(freq, dur) {
+      dur = dur || 0.1;
+      try { this.initAudio(); if(this.synth) this.synth.triggerAttackRelease(freq, dur); } catch(e) {}
+    },
+
+    // ── Start ────────────────────────────────────────────────────────
+    startWithName: function() {
+      var name = document.getElementById('nameInput').value.trim();
+      if (!name) { alert('Please enter a name!'); return; }
+      this.character.name = name;
+      this.character.avatar = '&#x1F9D9;';
+      document.getElementById('nameModalOverlay').style.display = 'none';
+      this.init();
+    },
+
+    init: function() {
+      this.renderCharacter();
+      this.renderQuestLog();
+      this.startQuest(1);
+    },
+
+    // ── Render ───────────────────────────────────────────────────────
+    renderCharacter: function() {
+      document.getElementById('charAvatar').innerHTML = this.character.avatar;
+      document.getElementById('charName').textContent = this.character.name;
+      document.getElementById('charTitle').textContent = this.character.title;
+      document.getElementById('levelDisplay').textContent = this.character.level;
+      document.getElementById('hpDisplay').textContent = this.character.hp + '/' + this.character.maxHp;
+      document.getElementById('manaDisplay').textContent = this.character.mana + '/' + this.character.maxMana;
+      document.getElementById('questsWon').textContent = this.character.questsWon;
+      document.getElementById('playerHpBar').style.width = ((this.character.hp / this.character.maxHp) * 100) + '%';
+      document.getElementById('manaBar').style.width = ((this.character.mana / this.character.maxMana) * 100) + '%';
+      document.getElementById('xpBar').style.width = ((this.character.xp / this.character.xpNeeded) * 100) + '%';
+      document.getElementById('playerAvatar').innerHTML = this.character.avatar;
+      document.getElementById('playerCombatantName').textContent = this.character.name;
+      document.getElementById('weaponName').textContent = this.character.equipment.weapon.name;
+      document.getElementById('armorName').textContent = this.character.equipment.armor.name;
+      document.getElementById('amuletName').textContent = this.character.equipment.amulet.name;
+    },
+
+    renderQuestLog: function() {
+      var list = document.getElementById('questsList');
+      list.innerHTML = '';
+      var self = this;
+      this.quests.forEach(function(q) {
+        var div = document.createElement('div');
+        var cls = 'quest-item';
+        if (q.id === self.currentQuestId) cls += ' active';
+        if (q.completed) cls += ' completed';
+        div.className = cls;
+        div.style.opacity = q.locked ? '0.5' : '1';
+        div.style.cursor = q.locked ? 'not-allowed' : 'pointer';
+        if (!q.locked) {
+          (function(id){ div.onclick = function(){ self.startQuest(id); }; })(q.id);
+        }
+        var stars = '';
+        for (var i=0; i<q.difficulty; i++) stars += '&#x2B50;';
+        div.innerHTML = '<div class="quest-item-name">' + (q.completed ? '&#x2713; ' : '') + q.name + '</div>'
+          + '<div class="quest-item-status">Difficulty: ' + stars + '</div>'
+          + '<div class="quest-item-reward">Reward: +' + q.reward.xp + ' XP</div>';
+        list.appendChild(div);
+      });
+    },
+
+    renderBattle: function() {
+      document.getElementById('playerBattleHp').textContent = Math.max(0, this.character.hp);
+      document.getElementById('playerBattleHpBar').style.width = Math.max(0, (this.character.hp / this.character.maxHp) * 100) + '%';
+      document.getElementById('enemyHp').textContent = Math.max(0, this.currentBattle.enemy.currentHp);
+      document.getElementById('enemyHpBar').style.width = Math.max(0, (this.currentBattle.enemy.currentHp / this.currentBattle.enemy.maxHp) * 100) + '%';
+    },
+
+    // ── Quest flow ───────────────────────────────────────────────────
+    startQuest: function(questId) {
+      var quest = null;
+      for (var i=0; i<this.quests.length; i++) {
+        if (this.quests[i].id === questId) { quest = this.quests[i]; break; }
+      }
+      if (!quest || quest.locked) return;
+      this.currentQuestId = questId;
+      this.character.hp = this.character.maxHp;
+      this.character.mana = this.character.maxMana;
+      this.currentBattle = {
+        enemy: { name:quest.enemy.name, avatar:quest.enemy.avatar, hp:quest.enemy.hp, maxHp:quest.enemy.hp, currentHp:quest.enemy.hp },
+        quest: quest, round: 0
+      };
+      document.getElementById('questName').textContent = quest.name;
+      document.getElementById('questDesc').textContent = quest.desc;
+      document.getElementById('enemyName').textContent = quest.enemy.name;
+      document.getElementById('enemyAvatar').innerHTML = quest.enemy.avatar;
+      document.getElementById('enemyHp').textContent = quest.enemy.hp;
+      this.renderBattle();
+      this.renderCharacter();
+      this.renderQuestLog();
+      this.generateProblem();
+    },
+
+    generateProblem: function() {
+      this.currentAttempts = 0;
+      this.hintUsed = false;
+      var quest = this.currentBattle.quest;
+      var round = this.currentBattle.round;
+      var targetDiff = Math.min(round + 1, 4);
+      var pool = [];
+      for (var i=0; i<quest.scenarios.length; i++) {
+        if (quest.scenarios[i].difficulty === targetDiff) pool.push(quest.scenarios[i]);
+      }
+      if (pool.length === 0) pool = quest.scenarios;
+      var scenario = pool[Math.floor(Math.random() * pool.length)];
+      this._scenario = scenario;
+
+      var types = ['identify','write','analyze'];
+      var type = types[Math.floor(Math.random() * 3)];
+
+      var html = '<div class="problem-context">&#x1F4DA; ' + scenario.context + '</div>';
+
+      if (type === 'identify') {
+        html += '<div class="problem-text">Which correctly identifies the <strong>independent variable (x)</strong> and the <strong>dependent variable (y)</strong>?</div>';
+        var opts = [
+          { text: 'Independent variable (x): ' + scenario.independent + '  |  Dependent variable (y): ' + scenario.dependent, correct: true },
+          { text: 'Independent variable (x): ' + scenario.dependent   + '  |  Dependent variable (y): ' + scenario.independent, correct: false },
+          { text: 'Both are independent variables', correct: false }
+        ];
+        // shuffle
+        opts.sort(function(){ return Math.random()-0.5; });
+        html += '<div class="input-group" style="flex-direction:column;align-items:center;">';
+        for (var j=0; j<opts.length; j++) {
+          var letter = String.fromCharCode(65+j);
+          var dataCorrect = opts[j].correct ? '1' : '0';
+          html += '<button class="mc-btn" data-correct="' + dataCorrect + '" onclick="G.resolveIdentify(this)">'
+                + letter + ')  ' + opts[j].text + '</button>';
+        }
+        html += '</div>';
+
+      } else if (type === 'write') {
+        html += '<div class="problem-text">Write the equation for <span class="eq-var" style="font-size:1.6rem;">y</span>'
+              + ' <span class="eq-op" style="font-size:1.6rem;">=</span> using variable'
+              + ' <span class="eq-var" style="font-size:1.6rem;">x</span>.</div>';
+        if (scenario.constant === 0) {
+          html += '<div class="problem-text" style="font-size:1.1rem;opacity:0.8;">Example: &nbsp;<strong>y = 15x</strong></div>';
+        } else {
+          html += '<div class="problem-text" style="font-size:1.1rem;opacity:0.8;">Example: &nbsp;<strong>y = 10x + 5</strong></div>';
+        }
+        html += '<div class="input-group"><input type="text" id="answerInput" placeholder="Type: y = ..." autofocus></div>';
+        html += '<div id="attemptsDisplay" class="attempts-indicator"></div>';
+        html += '<div class="action-buttons">'
+              + '<button class="btn-success" onclick="G.checkWrite()">&#x2713; Submit</button>'
+              + '<button class="btn-hint" onclick="G.showHint()">&#x1F4A1; Hint</button>'
+              + '</div><div id="hintArea"></div>';
+
+      } else { // analyze
+        var xVal = Math.floor(Math.random() * 10) + 1;
+        var yVal = calcY(scenario.coeff, scenario.constant, xVal);
+        this._analyzeAnswer = yVal;
+
+        html += '<div class="problem-text">Using the equation:</div>';
+        html += eqHTML(scenario.coeff, scenario.constant);
+        html += '<div class="problem-text">If <span class="eq-sub" style="font-size:1.8rem;">x = ' + xVal + '</span>,'
+              + ' what is the value of <span class="eq-var" style="font-size:1.8rem;">y</span> ?</div>';
+        html += '<div class="input-group"><input type="number" id="answerInput" placeholder="Enter the value of y" autofocus></div>';
+        html += '<div id="attemptsDisplay" class="attempts-indicator"></div>';
+        html += '<div class="action-buttons">'
+              + '<button class="btn-success" onclick="G.checkAnalyze()">&#x2713; Submit</button>'
+              + '<button class="btn-hint" onclick="G.showHint()">&#x1F4A1; Hint</button>'
+              + '</div><div id="hintArea"></div>';
+      }
+
+      document.getElementById('problemArea').innerHTML = html;
+      this.updateAttemptsDisplay();
+
+      // Bind Enter key on input
+      var self = this;
+      var inp = document.getElementById('answerInput');
+      if (inp) {
+        inp.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            if (type === 'write') self.checkWrite();
+            else self.checkAnalyze();
+          }
+        });
+      }
+    },
+
+    updateAttemptsDisplay: function() {
+      var d = document.getElementById('attemptsDisplay');
+      if (d) d.textContent = 'Attempts remaining: ' + (3 - this.currentAttempts) + ' / 3';
+    },
+
+    showHint: function() {
+      if (!this.hintUsed && this._scenario) {
+        this.hintUsed = true;
+        var ha = document.getElementById('hintArea');
+        if (ha) ha.innerHTML = '<div class="hint-box">&#x1F4A1; ' + this._scenario.hint + '</div>';
+      } else {
+        this.showFeedback('Hint already used!', 'incorrect');
+      }
+    },
+
+    resolveIdentify: function(btn) {
+      var isCorrect = btn.getAttribute('data-correct') === '1';
+      this.resolveAnswer(isCorrect);
+    },
+
+    checkWrite: function() {
+      var inp = document.getElementById('answerInput');
+      if (!inp || !this._scenario) return;
+      var correct = correctStr(this._scenario.coeff, this._scenario.constant);
+      var isCorrect = normalizeEq(inp.value) === normalizeEq(correct);
+      if (isCorrect) {
+        this.resolveAnswer(true);
+      } else {
+        this.wrongAttempt(inp);
+      }
+    },
+
+    checkAnalyze: function() {
+      var inp = document.getElementById('answerInput');
+      if (!inp) return;
+      var val = parseFloat(inp.value);
+      var isCorrect = (!isNaN(val) && val === this._analyzeAnswer);
+      if (isCorrect) {
+        this.resolveAnswer(true);
+      } else {
+        this.wrongAttempt(inp);
+      }
+    },
+
+    wrongAttempt: function(inp) {
+      this.currentAttempts++;
+      if (this.currentAttempts < 3) {
+        this.playSound(300, 0.2);
+        this.showFeedback('&#x2717; Try again!', 'incorrect');
+        if (inp) inp.value = '';
+        this.updateAttemptsDisplay();
+      } else {
+        this.character.hp -= 20;
+        this.playSound(150, 0.3);
+        this.showFeedback('&#x2717; Out of attempts!', 'incorrect');
+        this.createParticles(8, 'rgb(255,71,87)');
+        this.renderBattle(); this.renderCharacter();
+        var self = this;
+        setTimeout(function(){ self.generateProblem(); }, 1400);
+      }
+    },
+
+    resolveAnswer: function(isCorrect) {
+      var self = this;
+      if (isCorrect) {
+        this.currentBattle.enemy.currentHp -= 20 + Math.floor(Math.random() * 15);
+        this.playSound(800, 0.25);
+        this.showFeedback('&#x2713; HIT!', 'correct');
+        this.createParticles(25, 'rgb(0,255,136)');
+        this.createSparkles(30);
+      } else {
+        this.character.hp -= 15 + Math.floor(Math.random() * 10);
+        this.playSound(300, 0.2);
+        this.showFeedback('&#x2717; MISS!', 'incorrect');
+        this.createParticles(12, 'rgb(255,71,87)');
+      }
+      this.character.mana = Math.max(0, this.character.mana - 5);
+      this.currentBattle.round++;
+      this.renderBattle(); this.renderCharacter();
+      if (this.currentBattle.enemy.currentHp <= 0) {
+        this.questVictory();
+      } else if (this.character.hp <= 0) {
+        this.questDefeat();
+      } else {
+        setTimeout(function(){ self.generateProblem(); }, 800);
+      }
+    },
+
+    questVictory: function() {
+      var quest = null;
+      for (var i=0; i<this.quests.length; i++) {
+        if (this.quests[i].id === this.currentQuestId) { quest = this.quests[i]; break; }
+      }
+      quest.completed = true;
+      this.character.questsWon++;
+      this.character.xp += quest.reward.xp;
+      while (this.character.xp >= this.character.xpNeeded) {
+        this.character.xp -= this.character.xpNeeded;
+        this.character.level++;
+        this.character.maxHp += 20; this.character.hp = this.character.maxHp;
+        this.character.maxMana += 10; this.character.mana = this.character.maxMana;
+        this.levelUpCharacter();
+      }
+      if (quest.id < 4) this.quests[quest.id].locked = false;
+      this.playSound(1200, 0.6);
+      this.createParticles(60, 'rgb(255,190,11)');
+      this.createSparkles(50);
+      document.getElementById('modalTitle').textContent = quest.name + ' Complete!';
+      document.getElementById('modalEmoji').textContent = '&#x1F389;';
+      document.getElementById('modalReward').textContent = '+' + quest.reward.xp + ' XP' + (quest.reward.levelUp ? ', Level Up!' : '');
+      document.getElementById('modalMessage').textContent = 'You defeated ' + quest.enemy.name + '! Your mastery of equations grows stronger.';
+      this.showModal();
+      this.renderCharacter(); this.renderQuestLog();
+    },
+
+    questDefeat: function() {
+      this.playSound(150, 0.4);
+      document.getElementById('modalTitle').textContent = 'Defeated!';
+      document.getElementById('modalEmoji').textContent = '&#x1F494;';
+      document.getElementById('modalReward').textContent = '';
+      document.getElementById('modalMessage').textContent = 'You were defeated by ' + this.currentBattle.enemy.name + '. Recover and try again!';
+      this.showModal();
+      var self = this;
+      setTimeout(function(){ self.startQuest(self.currentQuestId); }, 2000);
+    },
+
+    levelUpCharacter: function() {
+      var titles = ['Equation Novice','Equation Student','Equation Adept','Equation Master','Legendary Mathematician'];
+      this.character.title = titles[Math.min(this.character.level - 1, titles.length - 1)];
+      var eq = [
+        [{ name:'Iron Sword',bonus:'+2 Accuracy'},{ name:'Iron Armor',bonus:'+2 Defense'},{ name:'Apprentice Amulet',bonus:'+10 XP'}],
+        [{ name:'Steel Blade',bonus:'+3 Accuracy'},{ name:'Steel Armor',bonus:'+3 Defense'},{ name:'Scholar Amulet',bonus:'+20 XP'}],
+        [{ name:'Crystal Sword',bonus:'+5 Accuracy'},{ name:'Crystal Armor',bonus:'+5 Defense'},{ name:'Master Amulet',bonus:'+50 XP'}]
+      ];
+      if (this.character.level <= 3) {
+        var lvl = this.character.level - 1;
+        this.character.equipment.weapon = eq[lvl][0];
+        this.character.equipment.armor  = eq[lvl][1];
+        this.character.equipment.amulet = eq[lvl][2];
+      }
+    },
+
+    showFeedback: function(html, type) {
+      var el = document.createElement('div');
+      el.className = 'feedback ' + type;
+      el.innerHTML = html;
+      document.body.appendChild(el);
+      setTimeout(function(){ el.remove(); }, 800);
+    },
+
+    createParticles: function(count, color) {
+      for (var i=0; i<count; i++) {
+        var p = document.createElement('div');
+        p.className = 'particle';
+        var size = Math.random()*12+4;
+        p.style.cssText = 'left:' + (window.innerWidth/2) + 'px;top:' + (window.innerHeight/2) + 'px;'
+          + 'width:' + size + 'px;height:' + size + 'px;background:' + color + ';border-radius:50%;opacity:1;';
+        document.body.appendChild(p);
+        var dist = Math.random()*150+50;
+        var angle = (Math.PI*2*i)/count;
+        var dur = Math.random()*1.2+0.6;
+        if (typeof gsap !== 'undefined') {
+          gsap.to(p, { x:Math.cos(angle)*dist, y:Math.sin(angle)*dist, opacity:0, duration:dur, ease:'power2.out', onComplete:function(){ p.remove(); } });
+        } else { setTimeout(function(){ p.remove(); }, dur*1000); }
+      }
+    },
+
+    createSparkles: function(count) {
+      for (var i=0; i<count; i++) {
+        var s = document.createElement('div');
+        s.className = 'particle';
+        s.style.cssText = 'left:' + (window.innerWidth/2) + 'px;top:' + (window.innerHeight/2) + 'px;font-size:1.5rem;border-radius:0;';
+        s.textContent = '✨';
+        document.body.appendChild(s);
+        var dist = Math.random()*200+80;
+        var angle = Math.random()*Math.PI*2;
+        var dur = Math.random()*1.5+1;
+        if (typeof gsap !== 'undefined') {
+          gsap.to(s, { x:Math.cos(angle)*dist, y:Math.sin(angle)*dist, opacity:0, scale:0.5, rotation:Math.random()*360, duration:dur, ease:'power2.out', onComplete:function(){ s.remove(); } });
+        } else { setTimeout(function(){ s.remove(); }, dur*1000); }
+      }
+    },
+
+    showModal: function()  { document.getElementById('modalOverlay').classList.add('active'); },
+    closeModal: function() { document.getElementById('modalOverlay').classList.remove('active'); },
+
+    nextQuest: function() {
+      var next = null;
+      for (var i=0; i<this.quests.length; i++) {
+        if (!this.quests[i].completed && !this.quests[i].locked) { next = this.quests[i]; break; }
+      }
+      if (next) this.startQuest(next.id);
+      else alert('You have completed all quests! You are an Equation Master!');
+    }
+  };
+
+  // Expose as global G so onclick attributes work
+  window.G = game;
+
+  // Wire up buttons safely (no inline template literals)
+  document.getElementById('startBtn').addEventListener('click', function(){ game.startWithName(); });
+  document.getElementById('nameInput').addEventListener('keypress', function(e){ if(e.key==='Enter') game.startWithName(); });
+  document.getElementById('continueBtn').addEventListener('click', function(){ game.closeModal(); game.nextQuest(); });
+  document.getElementById('nameInput').focus();
+})();
+</script>
+</body>
+</html>
