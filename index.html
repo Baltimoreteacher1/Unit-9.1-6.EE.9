@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equation Quest RPG — 6.EE.C.9</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Tone.js/14.8.49/Tone.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #00d4ff;
+            --secondary: #ff006e;
+            --accent: #ffbe0b;
+            --dark: #1a1f3a;
+            --darker: #252d4a;
+            --success: #00ff88;
+            --danger: #ff4757;
+            --warning: #ffa502;
+            --neutral: #6c757d;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: linear-gradient(135deg, var(--darker) 0%, #3a4460 100%);
+            color: var(--primary);
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(0deg, transparent 24%, rgba(0, 212, 255, 0.04) 25%, rgba(0, 212, 255, 0.04) 26%, transparent 27%, transparent 74%, rgba(0, 212, 255, 0.04) 75%, rgba(0, 212, 255, 0.04) 76%, transparent 77%, transparent),
+                linear-gradient(90deg, transparent 24%, rgba(0, 212, 255, 0.04) 25%, rgba(0, 212, 255, 0.04) 26%, transparent 27%, transparent 74%, rgba(0, 212, 255, 0.04) 75%, rgba(0, 212, 255, 0.04) 76%, transparent 77%, transparent);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+            animation: gridScroll 30s linear infinite;
+        }
+
+        @keyframes gridScroll {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(50px); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        /* Character Panel */
+        .character-panel {
+            width: 280px;
+            background: rgba(26, 31, 58, 0.9);
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .char-header {
+            text-align: center;
+            border-bottom: 1px solid var(--primary);
+            padding-bottom: 15px;
+        }
+
+        .char-avatar {
+            font-size: 4rem;
+            margin-bottom: 10px;
+            animation: avatarBob 3s ease-in-out infinite;
+        }
+
+        @keyframes avatarBob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .char-name {
+            font-size: 1.2rem;
+            color: var(--accent);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .char-title {
+            font-size: 0.8rem;
+            color: var(--neutral);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .stat-label {
+            color: var(--accent);
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            color: var(--primary);
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .hp-bar, .xp-bar, .mana-bar {
+            width: 100%;
+            height: 18px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--primary);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .hp-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4757, #ff7675);
+            width: 100%;
+            transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .xp-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            width: 0%;
+            transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+        }
+
+        .mana-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6c5ce7, #0984e3);
+            width: 100%;
+            transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .inventory {
+            border: 1px solid var(--secondary);
+            padding: 10px;
+            border-radius: 5px;
+            background: rgba(255, 0, 110, 0.05);
+        }
+
+        .inventory-title {
+            font-size: 0.7rem;
+            color: var(--secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .equipment-slot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px;
+            margin-bottom: 6px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 0, 110, 0.3);
+            border-radius: 3px;
+            font-size: 0.8rem;
+        }
+
+        .slot-icon {
+            font-size: 1.2rem;
+        }
+
+        .slot-name {
+            color: var(--primary);
+            flex: 1;
+            margin: 0 8px;
+        }
+
+        .slot-bonus {
+            color: var(--success);
+            font-size: 0.7rem;
+        }
+
+        .game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .battle-panel {
+            flex: 1;
+            background: rgba(26, 31, 58, 0.9);
+            border: 2px solid var(--secondary);
+            border-radius: 10px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .battle-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, rgba(255, 0, 110, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+            animation: radialPulse 4s ease-in-out infinite;
+        }
+
+        @keyframes radialPulse {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.05); opacity: 0.6; }
+        }
+
+        .quest-info {
+            text-align: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--secondary);
+            padding-bottom: 15px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .quest-name {
+            font-size: 1.1rem;
+            color: var(--secondary);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .quest-desc {
+            font-size: 0.9rem;
+            color: var(--neutral);
+            line-height: 1.4;
+        }
+
+        .battle-scene {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            gap: 40px;
+            position: relative;
+            z-index: 2;
+            margin: 20px 0;
+        }
+
+        .combatant {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .combatant-avatar {
+            font-size: 5rem;
+            animation: combatantFloat 2s ease-in-out infinite;
+        }
+
+        @keyframes combatantFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .combatant-name {
+            font-size: 1rem;
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .health-info {
+            font-size: 0.8rem;
+            color: var(--accent);
+            margin-bottom: 5px;
+        }
+
+        .combatant-hp {
+            width: 200px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #ff4757;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .combatant-hp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4757, #ff7675);
+            width: 100%;
+            transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .vs-text {
+            font-size: 2rem;
+            color: var(--danger);
+            font-weight: bold;
+            animation: vsPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes vsPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .problem-area {
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            padding: 20px;
+            width: 100%;
+            position: relative;
+            z-index: 2;
+        }
+
+        .problem-text {
+            font-size: 1rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .problem-context {
+            background: rgba(255, 190, 11, 0.1);
+            border-left: 3px solid var(--accent);
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 3px;
+            font-size: 0.95rem;
+            color: var(--accent);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        input {
+            padding: 12px 15px;
+            border: 2px solid var(--primary);
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--primary);
+            font-family: 'JetBrains Mono';
+            font-size: 1rem;
+            border-radius: 5px;
+            transition: all 0.3s;
+            min-width: 150px;
+        }
+
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+            background: rgba(0, 212, 255, 0.15);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: 2px solid var(--primary);
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--primary);
+            font-family: 'JetBrains Mono';
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background: rgba(0, 212, 255, 0.2);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-success {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .btn-success:hover {
+            background: rgba(0, 255, 136, 0.15);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+        }
+
+        .quest-log {
+            width: 280px;
+            background: rgba(26, 31, 58, 0.9);
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .log-title {
+            font-size: 0.8rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: bold;
+            border-bottom: 1px solid var(--accent);
+            padding-bottom: 10px;
+        }
+
+        .quest-item {
+            padding: 12px;
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid rgba(255, 190, 11, 0.3);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+        }
+
+        .quest-item:hover {
+            background: rgba(255, 190, 11, 0.1);
+            border-color: var(--accent);
+            transform: translateX(5px);
+        }
+
+        .quest-item.active {
+            background: rgba(255, 190, 11, 0.15);
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(255, 190, 11, 0.3);
+        }
+
+        .quest-item.completed {
+            opacity: 0.5;
+            border-color: var(--success);
+        }
+
+        .quest-item-name {
+            color: var(--primary);
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .quest-item-status {
+            font-size: 0.75rem;
+            color: var(--neutral);
+        }
+
+        .quest-item-reward {
+            font-size: 0.75rem;
+            color: var(--success);
+            margin-top: 4px;
+        }
+
+        .feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            font-weight: bold;
+            z-index: 100;
+            animation: feedbackPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            pointer-events: none;
+            text-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+        }
+
+        @keyframes feedbackPop {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.3); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
+        }
+
+        .feedback.correct {
+            color: var(--success);
+        }
+
+        .feedback.incorrect {
+            color: var(--danger);
+        }
+
+        .particle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        .shake {
+            animation: shake 0.3s;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: linear-gradient(135deg, rgba(26, 31, 58, 0.95), rgba(58, 68, 96, 0.95));
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 500px;
+            text-align: center;
+            animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-title {
+            font-size: 2rem;
+            color: var(--success);
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .modal-reward {
+            font-size: 1.2rem;
+            color: var(--accent);
+            margin: 20px 0;
+        }
+
+        .modal-button {
+            margin-top: 20px;
+        }
+
+        .name-modal {
+            background: linear-gradient(135deg, rgba(26, 31, 58, 0.95), rgba(58, 68, 96, 0.95));
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            padding: 40px;
+            max-width: 450px;
+            text-align: center;
+            animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .name-modal h2 {
+            font-size: 1.8rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .name-modal p {
+            color: var(--neutral);
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+
+        .name-modal input {
+            width: 100%;
+            max-width: 300px;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .character-panel, .quest-log {
+                width: 100%;
+                max-height: 150px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            .character-panel, .quest-log {
+                display: none;
+            }
+            .battle-scene {
+                flex-direction: column;
+                gap: 20px;
+            }
+            .combatant-hp {
+                width: 150px;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 255, 0.3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 212, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="character-panel">
+            <div class="char-header">
+                <div class="char-avatar" id="charAvatar">🧙</div>
+                <div class="char-name" id="charName">Scholar</div>
+                <div class="char-title" id="charTitle">Equation Novice</div>
+            </div>
+
+            <div class="stat-row">
+                <div>
+                    <div class="stat-label">Level</div>
+                    <div class="stat-value" id="levelDisplay">1</div>
+                </div>
+                <div style="flex: 1; margin-left: 10px;">
+                    <div class="stat-label">Experience</div>
+                    <div class="xp-bar">
+                        <div class="xp-bar-fill" id="xpBar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-row" style="flex-direction: column; align-items: flex-start;">
+                <div class="stat-label">Health</div>
+                <div style="width: 100%; display: flex; align-items: center; gap: 8px;">
+                    <div class="hp-bar" style="flex: 1;">
+                        <div class="hp-bar-fill" id="playerHpBar"></div>
+                    </div>
+                    <span class="stat-value" id="hpDisplay">100/100</span>
+                </div>
+            </div>
+
+            <div class="stat-row" style="flex-direction: column; align-items: flex-start;">
+                <div class="stat-label">Mana (Problem Solving)</div>
+                <div style="width: 100%; display: flex; align-items: center; gap: 8px;">
+                    <div class="mana-bar" style="flex: 1;">
+                        <div class="mana-bar-fill" id="manaBar"></div>
+                    </div>
+                    <span class="stat-value" id="manaDisplay">50/50</span>
+                </div>
+            </div>
+
+            <div class="stat-row">
+                <div class="stat-label">Quests Won</div>
+                <div class="stat-value" id="questsWon">0</div>
+            </div>
+
+            <div class="inventory">
+                <div class="inventory-title">⚔️ Equipment</div>
+                <div class="equipment-slot">
+                    <span class="slot-icon">🗡️</span>
+                    <span class="slot-name" id="weaponName">Wooden Sword</span>
+                    <span class="slot-bonus" id="weaponBonus">+1</span>
+                </div>
+                <div class="equipment-slot">
+                    <span class="slot-icon">🛡️</span>
+                    <span class="slot-name" id="armorName">Cloth Armor</span>
+                    <span class="slot-bonus" id="armorBonus">+1</span>
+                </div>
+                <div class="equipment-slot">
+                    <span class="slot-icon">💎</span>
+                    <span class="slot-name" id="amuletName">Novice Amulet</span>
+                    <span class="slot-bonus" id="amuletBonus">+5 XP</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div class="battle-panel" id="battlePanel">
+                <div class="quest-info">
+                    <div class="quest-name" id="questName">Academy Trial</div>
+                    <div class="quest-desc" id="questDesc">Defeat the equation guardian to prove your mastery</div>
+                </div>
+
+                <div class="battle-scene">
+                    <div class="combatant">
+                        <div class="combatant-avatar" id="playerAvatar">🧙</div>
+                        <div class="combatant-name" id="playerCombatantName">You</div>
+                        <div class="health-info">
+                            <span id="playerBattleHp">100</span> / 100 HP
+                        </div>
+                        <div class="combatant-hp">
+                            <div class="combatant-hp-fill" id="playerBattleHpBar"></div>
+                        </div>
+                    </div>
+
+                    <div class="vs-text">⚔️</div>
+
+                    <div class="combatant">
+                        <div class="combatant-avatar" id="enemyAvatar">🤖</div>
+                        <div class="combatant-name" id="enemyName">Equation Guardian</div>
+                        <div class="health-info">
+                            <span id="enemyHp">50</span> / 50 HP
+                        </div>
+                        <div class="combatant-hp">
+                            <div class="combatant-hp-fill" id="enemyHpBar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="problem-area" id="problemArea"></div>
+            </div>
+        </div>
+
+        <div class="quest-log">
+            <div class="log-title">📜 Quest Log</div>
+            <div id="questsList"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-title" id="modalTitle">Victory!</div>
+            <div style="font-size: 3rem; margin: 20px 0;" id="modalEmoji">🎉</div>
+            <div class="modal-reward" id="modalReward">+250 XP, +1 Level</div>
+            <div style="font-size: 0.95rem; color: var(--neutral); line-height: 1.6; margin: 15px 0;" id="modalMessage"></div>
+            <button class="btn-success modal-button" onclick="game.closeModal(); game.nextQuest();">Continue Adventure →</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="nameModalOverlay" style="display: flex;">
+        <div class="name-modal">
+            <h2>⚔️ Equation Quest RPG</h2>
+            <p>What is your character's name, brave scholar?</p>
+            <input type="text" id="nameInput" placeholder="Enter your name..." maxlength="20" onkeypress="if(event.key==='Enter') game.startWithName()">
+            <button class="btn-success" onclick="game.startWithName()" style="width: 100%;">Begin Quest →</button>
+        </div>
+    </div>
+
+    <script>
+        const game = {
+            character: {
+                name: 'Scholar',
+                title: 'Equation Novice',
+                avatar: '🧙',
+                level: 1,
+                xp: 0,
+                xpNeeded: 100,
+                maxHp: 100,
+                hp: 100,
+                maxMana: 50,
+                mana: 50,
+                questsWon: 0,
+                equipment: {
+                    weapon: { name: 'Wooden Sword', bonus: '+1 Accuracy', icon: '🗡️' },
+                    armor: { name: 'Cloth Armor', bonus: '+1 Defense', icon: '🛡️' },
+                    amulet: { name: 'Novice Amulet', bonus: '+5 XP', icon: '💎' }
+                }
+            },
+
+            quests: [
+                {
+                    id: 1,
+                    name: 'Academy Trial',
+                    desc: 'Defeat the equation guardian to prove your mastery',
+                    difficulty: 1,
+                    enemy: { name: 'Equation Guardian', hp: 50, avatar: '🤖', difficulty: 1 },
+                    reward: { xp: 250, levelUp: false },
+                    completed: false,
+                    scenarios: [
+                        { context: 'Pizza Pricing: $15 each', independent: 'Pizzas', dependent: 'Cost', expression: 'y = 15x' },
+                        { context: 'Concert Tickets: $25 each', independent: 'Tickets', dependent: 'Spent', expression: 'y = 25x' },
+                    ]
+                },
+                {
+                    id: 2,
+                    name: 'Chamber of Relationships',
+                    desc: 'Master the art of dependent variables',
+                    difficulty: 2,
+                    enemy: { name: 'Variable Wraith', hp: 75, avatar: '🌀', difficulty: 2 },
+                    reward: { xp: 400, levelUp: true },
+                    completed: false,
+                    locked: true,
+                    scenarios: [
+                        { context: 'Lemonade Stand: $2 per cup', independent: 'Cups', dependent: 'Earnings', expression: 'y = 2x' },
+                        { context: 'Garden Plants: 8 per row', independent: 'Rows', dependent: 'Plants', expression: 'y = 8x' },
+                    ]
+                },
+                {
+                    id: 3,
+                    name: 'The Coefficient Tower',
+                    desc: 'Face equations with coefficients and constants',
+                    difficulty: 3,
+                    enemy: { name: 'Coefficient Dragon', hp: 100, avatar: '🐉', difficulty: 3 },
+                    reward: { xp: 600, levelUp: true },
+                    completed: false,
+                    locked: true,
+                    scenarios: [
+                        { context: 'Bike Rental: $10/hour + $5 deposit', independent: 'Hours', dependent: 'Cost', expression: 'y = 10x + 5' },
+                        { context: 'Book Club: $3/book + $20 membership', independent: 'Books', dependent: 'Spent', expression: 'y = 3x + 20' },
+                    ]
+                },
+                {
+                    id: 4,
+                    name: 'Final Exam: The Equation Master',
+                    desc: 'Defeat the ultimate guardian and become an Equation Master',
+                    difficulty: 4,
+                    enemy: { name: 'The Equation Lord', hp: 150, avatar: '👑', difficulty: 4 },
+                    reward: { xp: 1000, levelUp: true },
+                    completed: false,
+                    locked: true,
+                    scenarios: [
+                        { context: 'Complex Scenario: Multiple relationships', independent: 'Variable X', dependent: 'Variable Y', expression: 'y = 15x + 30' },
+                    ]
+                }
+            ],
+
+            currentQuestId: 1,
+            currentBattle: null,
+            synth: null,
+            synthInit: false,
+
+            async initAudio() {
+                if (!this.synthInit) {
+                    this.synth = new Tone.Synth({
+                        oscillator: { type: 'square' },
+                        envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+                    }).toDestination();
+                    this.synthInit = true;
+                }
+            },
+
+            async playSound(frequency, duration = 0.1) {
+                try {
+                    await this.initAudio();
+                    this.synth.triggerAttackRelease(frequency, duration);
+                } catch(e) {}
+            },
+
+            startWithName() {
+                const nameInput = document.getElementById('nameInput');
+                const name = nameInput.value.trim();
+                
+                if (name.length === 0) {
+                    alert('Please enter a name!');
+                    return;
+                }
+
+                this.character.name = name;
+                document.getElementById('nameModalOverlay').style.display = 'none';
+                this.init();
+            },
+
+            init() {
+                this.renderCharacter();
+                this.renderQuestLog();
+                this.startQuest(1);
+            },
+
+            renderCharacter() {
+                document.getElementById('charAvatar').textContent = this.character.avatar;
+                document.getElementById('charName').textContent = this.character.name;
+                document.getElementById('charTitle').textContent = this.character.title;
+                document.getElementById('levelDisplay').textContent = this.character.level;
+                document.getElementById('hpDisplay').textContent = `${this.character.hp}/${this.character.maxHp}`;
+                document.getElementById('manaDisplay').textContent = `${this.character.mana}/${this.character.maxMana}`;
+                document.getElementById('questsWon').textContent = this.character.questsWon;
+                document.getElementById('playerHpBar').style.width = `${(this.character.hp / this.character.maxHp) * 100}%`;
+                document.getElementById('manaBar').style.width = `${(this.character.mana / this.character.maxMana) * 100}%`;
+                document.getElementById('xpBar').style.width = `${(this.character.xp / this.character.xpNeeded) * 100}%`;
+                document.getElementById('playerAvatar').textContent = this.character.avatar;
+                document.getElementById('playerCombatantName').textContent = this.character.name;
+                document.getElementById('weaponName').textContent = this.character.equipment.weapon.name;
+                document.getElementById('armorName').textContent = this.character.equipment.armor.name;
+                document.getElementById('amuletName').textContent = this.character.equipment.amulet.name;
+            },
+
+            renderQuestLog() {
+                const list = document.getElementById('questsList');
+                list.innerHTML = '';
+                this.quests.forEach(q => {
+                    const div = document.createElement('div');
+                    div.className = `quest-item ${q.id === this.currentQuestId ? 'active' : ''} ${q.completed ? 'completed' : ''} ${q.locked ? 'locked' : ''}`;
+                    div.style.opacity = q.locked ? '0.5' : '1';
+                    div.style.cursor = q.locked ? 'not-allowed' : 'pointer';
+                    if (!q.locked) {
+                        div.onclick = () => this.startQuest(q.id);
+                    }
+                    div.innerHTML = `
+                        <div class="quest-item-name">${q.completed ? '✓' : ''} ${q.name}</div>
+                        <div class="quest-item-status">Difficulty: ${'⭐'.repeat(q.difficulty)}</div>
+                        <div class="quest-item-reward">Reward: +${q.reward.xp} XP</div>
+                    `;
+                    list.appendChild(div);
+                });
+            },
+
+            startQuest(questId) {
+                const quest = this.quests.find(q => q.id === questId);
+                if (!quest || quest.locked) return;
+
+                this.currentQuestId = questId;
+                this.character.hp = this.character.maxHp;
+                this.character.mana = this.character.maxMana;
+
+                this.currentBattle = {
+                    enemy: {
+                        ...quest.enemy,
+                        maxHp: quest.enemy.hp,
+                        currentHp: quest.enemy.hp
+                    },
+                    quest: quest,
+                    playerHealth: this.character.hp,
+                    round: 0
+                };
+
+                document.getElementById('questName').textContent = quest.name;
+                document.getElementById('questDesc').textContent = quest.desc;
+                document.getElementById('enemyName').textContent = quest.enemy.name;
+                document.getElementById('enemyAvatar').textContent = quest.enemy.avatar;
+                document.getElementById('enemyHp').textContent = quest.enemy.hp;
+
+                this.renderBattle();
+                this.renderCharacter();
+                this.renderQuestLog();
+                this.generateProblem();
+            },
+
+            generateProblem() {
+                const scenario = this.currentBattle.quest.scenarios[Math.floor(Math.random() * this.currentBattle.quest.scenarios.length)];
+                const problemTypes = ['identify', 'write', 'analyze'];
+                const type = problemTypes[Math.floor(Math.random() * problemTypes.length)];
+
+                let html = `<div class="problem-context">🎯 ${scenario.context}</div>`;
+
+                if (type === 'identify') {
+                    html += `<div class="problem-text">Which correctly identifies the variables?</div>`;
+                    const options = [
+                        `Independent: ${scenario.independent} | Dependent: ${scenario.dependent}`,
+                        `Independent: ${scenario.dependent} | Dependent: ${scenario.independent}`,
+                        'Both independent'
+                    ].sort(() => Math.random() - 0.5);
+
+                    html += '<div class="input-group" style="flex-direction: column; align-items: center;">';
+                    options.forEach((opt, idx) => {
+                        html += `<button onclick="game.checkAnswer('${scenario.independent}/${scenario.dependent}', '${opt === options[0]}')">${String.fromCharCode(65 + idx)}) ${opt}</button>`;
+                    });
+                    html += '</div>';
+                } else if (type === 'write') {
+                    html += `<div class="problem-text">Write the equation (y = ...)</div>`;
+                    html += `<div class="input-group"><input type="text" id="answerInput" placeholder="y = " onkeypress="if(event.key==='Enter') game.checkAnswer('${scenario.expression}', document.getElementById('answerInput').value)" autofocus></div>`;
+                    html += `<div class="action-buttons"><button class="btn-success" onclick="game.checkAnswer('${scenario.expression}', document.getElementById('answerInput').value)">Submit Answer</button></div>`;
+                } else if (type === 'analyze') {
+                    const x = Math.floor(Math.random() * 10) + 1;
+                    const y = eval(scenario.expression.replace('x', x).replace('y = ', ''));
+                    html += `<div class="problem-text">If ${scenario.independent} = ${x}, what is ${scenario.dependent}?</div>`;
+                    html += `<div class="input-group"><input type="number" id="answerInput" placeholder="Answer" onkeypress="if(event.key==='Enter') game.checkAnswer('${y}', document.getElementById('answerInput').value)" autofocus></div>`;
+                    html += `<div class="action-buttons"><button class="btn-success" onclick="game.checkAnswer('${y}', document.getElementById('answerInput').value)">Submit Answer</button></div>`;
+                }
+
+                document.getElementById('problemArea').innerHTML = html;
+            },
+
+            async checkAnswer(correct, answer) {
+                const isCorrect = String(answer).toLowerCase().replace(/\s/g, '') === String(correct).toLowerCase().replace(/\s/g, '');
+
+                if (isCorrect) {
+                    this.currentBattle.enemy.currentHp -= 20 + Math.floor(Math.random() * 10);
+                    this.playSound(800, 0.2);
+                    this.showFeedback('✓ HIT!', 'correct');
+                    this.createParticles(15, 'rgb(0, 255, 136)');
+                } else {
+                    this.character.hp -= 15 + Math.floor(Math.random() * 10);
+                    this.playSound(300, 0.2);
+                    this.showFeedback('✗ MISS!', 'incorrect');
+                    this.createParticles(8, 'rgb(255, 71, 87)');
+                }
+
+                this.character.mana = Math.max(0, this.character.mana - 5);
+                this.renderBattle();
+                this.renderCharacter();
+
+                if (this.currentBattle.enemy.currentHp <= 0) {
+                    await this.questVictory();
+                } else if (this.character.hp <= 0) {
+                    await this.questDefeat();
+                } else {
+                    setTimeout(() => this.generateProblem(), 800);
+                }
+            },
+
+            async questVictory() {
+                const quest = this.quests.find(q => q.id === this.currentQuestId);
+                quest.completed = true;
+                this.character.questsWon++;
+
+                this.character.xp += quest.reward.xp;
+                while (this.character.xp >= this.character.xpNeeded) {
+                    this.character.xp -= this.character.xpNeeded;
+                    this.character.level++;
+                    this.character.maxHp += 20;
+                    this.character.hp = this.character.maxHp;
+                    this.character.maxMana += 10;
+                    this.character.mana = this.character.maxMana;
+                    this.levelUpCharacter();
+                }
+
+                if (quest.id < 4) {
+                    this.quests[quest.id].locked = false;
+                }
+
+                this.playSound(1200, 0.5);
+                this.createParticles(50, 'rgb(255, 190, 11)');
+
+                document.getElementById('modalTitle').textContent = `${quest.name} Complete!`;
+                document.getElementById('modalEmoji').textContent = '🎉';
+                document.getElementById('modalReward').textContent = `+${quest.reward.xp} XP${quest.reward.levelUp ? ', Level Up!' : ''}`;
+                document.getElementById('modalMessage').textContent = `You defeated ${quest.enemy.name}! Your mastery of equations grows stronger.`;
+
+                this.showModal();
+                this.renderCharacter();
+                this.renderQuestLog();
+            },
+
+            async questDefeat() {
+                this.playSound(150, 0.5);
+                document.getElementById('modalTitle').textContent = 'Defeated!';
+                document.getElementById('modalEmoji').textContent = '💔';
+                document.getElementById('modalReward').textContent = '';
+                document.getElementById('modalMessage').textContent = `You were defeated by ${this.currentBattle.enemy.name}. Recover and try again!`;
+
+                this.showModal();
+                setTimeout(() => this.startQuest(this.currentQuestId), 2000);
+            },
+
+            levelUpCharacter() {
+                const titles = ['Equation Novice', 'Equation Student', 'Equation Adept', 'Equation Master', 'Legendary Mathematician'];
+                this.character.title = titles[Math.min(this.character.level - 1, titles.length - 1)];
+                
+                const equipment = [
+                    [
+                        { name: 'Iron Sword', bonus: '+2 Accuracy', icon: '⚔️' },
+                        { name: 'Iron Armor', bonus: '+2 Defense', icon: '🛡️' },
+                        { name: 'Apprentice Amulet', bonus: '+10 XP', icon: '💎' }
+                    ],
+                    [
+                        { name: 'Steel Blade', bonus: '+3 Accuracy', icon: '🗡️' },
+                        { name: 'Steel Armor', bonus: '+3 Defense', icon: '🛡️' },
+                        { name: 'Scholar Amulet', bonus: '+20 XP', icon: '✨' }
+                    ],
+                    [
+                        { name: 'Crystal Sword', bonus: '+5 Accuracy', icon: '💠' },
+                        { name: 'Crystal Armor', bonus: '+5 Defense', icon: '💠' },
+                        { name: 'Master Amulet', bonus: '+50 XP', icon: '👑' }
+                    ]
+                ];
+
+                if (this.character.level <= 3) {
+                    this.character.equipment.weapon = equipment[this.character.level - 1][0];
+                    this.character.equipment.armor = equipment[this.character.level - 1][1];
+                    this.character.equipment.amulet = equipment[this.character.level - 1][2];
+                }
+            },
+
+            renderBattle() {
+                document.getElementById('playerBattleHp').textContent = Math.max(0, this.character.hp);
+                document.getElementById('playerBattleHpBar').style.width = `${Math.max(0, (this.character.hp / this.character.maxHp) * 100)}%`;
+                document.getElementById('enemyHp').textContent = Math.max(0, this.currentBattle.enemy.currentHp);
+                document.getElementById('enemyHpBar').style.width = `${Math.max(0, (this.currentBattle.enemy.currentHp / this.currentBattle.enemy.maxHp) * 100)}%`;
+            },
+
+            showFeedback(text, type) {
+                const feedback = document.createElement('div');
+                feedback.className = `feedback ${type}`;
+                feedback.textContent = text;
+                document.body.appendChild(feedback);
+                setTimeout(() => feedback.remove(), 800);
+            },
+
+            createParticles(count, color) {
+                for (let i = 0; i < count; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = Math.random() * window.innerWidth + 'px';
+                    particle.style.top = Math.random() * window.innerHeight + 'px';
+                    particle.style.width = particle.style.height = Math.random() * 10 + 5 + 'px';
+                    particle.style.background = color;
+                    particle.style.borderRadius = '50%';
+                    document.body.appendChild(particle);
+
+                    const duration = Math.random() * 1 + 0.5;
+                    particle.animate([
+                        { opacity: 1, transform: 'translate(0, 0) scale(1)' },
+                        { opacity: 0, transform: `translate(${Math.random() * 100 - 50}px, ${Math.random() * -100}px) scale(0)` }
+                    ], {
+                        duration: duration * 1000,
+                        easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                    });
+
+                    setTimeout(() => particle.remove(), duration * 1000);
+                }
+            },
+
+            showModal() {
+                document.getElementById('modalOverlay').classList.add('active');
+            },
+
+            closeModal() {
+                document.getElementById('modalOverlay').classList.remove('active');
+            },
+
+            nextQuest() {
+                const nextQuest = this.quests.find(q => !q.completed && !q.locked);
+                if (nextQuest) {
+                    this.startQuest(nextQuest.id);
+                } else {
+                    alert('🏆 You have completed all quests! You are an Equation Master!');
+                }
+            }
+        };
+
+        document.getElementById('nameInput').focus();
+    </script>
+</body>
+</html>
