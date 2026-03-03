@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Equation Quest RPG &#x2014; 6.EE.C.9</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Tone.js/14.8.49/Tone.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+/* ===== RESET ===== */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden}
+:root{
+  --cyan:#00d4ff;--pink:#ff006e;--gold:#ffbe0b;
+  --green:#00ff88;--red:#ff4757;--orange:#ffa502;--muted:#9fb3d5;
+  --panel:rgba(20,32,58,0.96);--border:rgba(0,212,255,0.28);
+}
+body{font-family:'Share Tech Mono','Courier New',monospace;background:#08111f;color:var(--cyan);}
+
+/* ===== BACKGROUND ===== */
+#bg{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse at 15% 50%,rgba(255,0,110,.07) 0%,transparent 55%),
+             radial-gradient(ellipse at 85% 20%,rgba(0,212,255,.07) 0%,transparent 55%),
+             linear-gradient(160deg,#08111f 0%,#0e1e38 60%,#060f1a 100%);}
+.stars{position:absolute;inset:0;
+  background-image:
+    radial-gradient(1px 1px at 8%  12%,rgba(255,255,255,.9),transparent),
+    radial-gradient(1px 1px at 22% 38%,rgba(255,255,255,.7),transparent),
+    radial-gradient(1px 1px at 38%  8%,rgba(255,255,255,.8),transparent),
+    radial-gradient(1px 1px at 52% 58%,rgba(255,255,255,.6),transparent),
+    radial-gradient(1px 1px at 67% 28%,rgba(255,255,255,.9),transparent),
+    radial-gradient(2px 2px at 80% 72%,rgba(255,255,255,.5),transparent),
+    radial-gradient(1px 1px at 93% 18%,rgba(255,255,255,.8),transparent),
+    radial-gradient(1px 1px at 45% 82%,rgba(255,255,255,.6),transparent),
+    radial-gradient(2px 2px at 12% 75%,rgba(255,255,255,.4),transparent);
+  background-size:350px 350px;animation:twinkle 4s ease-in-out infinite alternate;}
+@keyframes twinkle{from{opacity:.5}to{opacity:1}}
+.grid{position:absolute;inset:0;
+  background-image:linear-gradient(rgba(0,212,255,.035) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,212,255,.035) 1px,transparent 1px);
+  background-size:60px 60px;animation:gridDrift 90s linear infinite;}
+@keyframes gridDrift{0%{transform:translateY(0)}100%{transform:translateY(60px)}}
+
+/* ===== LAYOUT ===== */
+#app{position:relative;z-index:1;width:100%;height:100vh;
+     display:grid;grid-template-columns:260px 1fr 260px;gap:14px;padding:14px;}
+
+/* ===== SHARED PANEL ===== */
+.panel{background:var(--panel);border:1.5px solid var(--border);border-radius:14px;
+       backdrop-filter:blur(14px);display:flex;flex-direction:column;overflow:hidden;
+       box-shadow:0 8px 32px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.04);}
+.ph{padding:12px 16px;border-bottom:1px solid var(--border);
+    font-family:'Orbitron',monospace;font-size:.62rem;letter-spacing:3px;
+    text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:7px;}
+.pb{padding:13px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:9px;}
+
+/* ===== CHARACTER PANEL ===== */
+.avatar{font-size:3.8rem;text-align:center;padding:10px 0;
+        filter:drop-shadow(0 0 18px rgba(0,212,255,.5));
+        animation:bob 3s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-10px) rotate(1deg)}}
+.cname{font-family:'Orbitron',monospace;font-size:.95rem;font-weight:900;
+       color:var(--gold);text-align:center;margin-bottom:2px;
+       text-shadow:0 0 12px rgba(255,190,11,.4);}
+.ctitle{font-size:.62rem;color:var(--muted);text-align:center;
+        letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+.sblock{display:flex;flex-direction:column;gap:4px;}
+.slr{display:flex;justify-content:space-between;font-size:.68rem;}
+.slr .lbl{color:var(--gold);text-transform:uppercase;letter-spacing:1px;font-weight:bold;}
+.slr .val{color:#fff;}
+.track{width:100%;height:11px;background:rgba(0,0,0,.5);border-radius:6px;overflow:hidden;
+       border:1px solid rgba(255,255,255,.07);}
+.fill{height:100%;border-radius:6px;transition:width .5s cubic-bezier(.34,1.56,.64,1);}
+.fill-hp  {background:linear-gradient(90deg,#ff4757,#ff9090);box-shadow:0 0 8px rgba(255,71,87,.5);}
+.fill-mana{background:linear-gradient(90deg,#6c5ce7,#74b9ff);box-shadow:0 0 8px rgba(108,92,231,.4);}
+.fill-xp  {background:linear-gradient(90deg,var(--cyan),var(--gold));box-shadow:0 0 8px rgba(0,212,255,.4);}
+.srow{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;
+      background:rgba(0,212,255,.05);border:1px solid var(--border);border-radius:7px;font-size:.78rem;}
+.srow .lbl{color:var(--gold);font-size:.62rem;text-transform:uppercase;letter-spacing:1px;}
+.srow .val{color:#fff;font-weight:bold;font-size:.95rem;}
+.etitle{font-size:.62rem;color:var(--pink);text-transform:uppercase;letter-spacing:2px;
+        font-weight:bold;margin-top:4px;}
+.eitem{display:flex;align-items:center;gap:7px;padding:6px 9px;
+       background:rgba(255,0,110,.07);border:1px solid rgba(255,0,110,.22);border-radius:7px;}
+.eicon{font-size:1.1rem;}
+.ename{color:var(--cyan);font-size:.72rem;flex:1;}
+.ebonus{color:var(--green);font-size:.62rem;font-weight:bold;}
+
+/* ===== BATTLE AREA ===== */
+#ba{border-color:rgba(255,0,110,.28);display:flex;flex-direction:column;
+    align-items:center;padding:18px;gap:12px;overflow-y:auto;}
+.qhdr{text-align:center;width:100%;border-bottom:1px solid rgba(255,0,110,.3);padding-bottom:12px;}
+.qtitle{font-family:'Orbitron',monospace;font-size:.95rem;font-weight:900;color:var(--pink);
+        letter-spacing:2px;margin-bottom:3px;text-shadow:0 0 16px rgba(255,0,110,.5);}
+.qsub{font-size:.78rem;color:var(--muted);}
+/* enemy progress */
+.eprog{width:100%;display:flex;flex-direction:column;gap:3px;}
+.eprog-lbl{display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);}
+.eprog-track{width:100%;height:9px;background:rgba(0,0,0,.45);border-radius:5px;overflow:hidden;
+             border:1px solid rgba(255,0,110,.25);}
+.eprog-fill{height:100%;background:linear-gradient(90deg,var(--pink),var(--gold));
+            border-radius:5px;transition:width .6s cubic-bezier(.34,1.56,.64,1);}
+/* combatants */
+.combatants{display:flex;align-items:center;justify-content:space-around;width:100%;gap:20px;}
+.combatant{display:flex;flex-direction:column;align-items:center;gap:7px;}
+.sprite{font-size:4.8rem;line-height:1;animation:float 2.5s ease-in-out infinite;
+        filter:drop-shadow(0 0 16px rgba(0,212,255,.4));}
+.esprite{animation-delay:-1.2s;filter:drop-shadow(0 0 16px rgba(255,0,110,.4));}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-13px)}}
+.cbar-wrap{width:180px;height:17px;background:rgba(0,0,0,.5);border:1px solid #ff4757;
+           border-radius:9px;overflow:hidden;}
+.cbar-fill{height:100%;background:linear-gradient(90deg,#ff4757,#ff9090);
+           border-radius:9px;transition:width .5s cubic-bezier(.34,1.56,.64,1);width:100%;}
+.cname-lbl{font-size:.8rem;color:var(--cyan);font-weight:bold;}
+.chp-lbl{font-size:.72rem;color:var(--gold);font-weight:bold;}
+.vs{font-size:2rem;color:var(--red);font-weight:900;
+    animation:vsp 1.2s ease-in-out infinite;font-family:'Orbitron',monospace;}
+@keyframes vsp{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.2);opacity:1}}
+
+/* ===== PROBLEM AREA ===== */
+#pa{width:100%;max-width:680px;background:rgba(0,0,0,.48);
+    border:2px solid var(--cyan);border-radius:14px;padding:24px 26px;position:relative;
+    box-shadow:0 0 28px rgba(0,212,255,.1),inset 0 1px 0 rgba(255,255,255,.04);}
+#pa::before{content:'';position:absolute;inset:0;border-radius:14px;
+  background:radial-gradient(ellipse at 50% 0%,rgba(0,212,255,.05) 0%,transparent 60%);
+  pointer-events:none;}
+.rflash{position:absolute;inset:0;border-radius:14px;pointer-events:none;
+        opacity:0;transition:opacity .15s;}
+.rf-ok {background:rgba(0,255,136,.09);opacity:1;}
+.rf-bad{background:rgba(255,71,87,.09);opacity:1;}
+
+/* context + question */
+.pctx{background:rgba(255,190,11,.11);border-left:5px solid var(--gold);
+      border-radius:8px;padding:12px 15px;margin-bottom:16px;
+      font-size:1.2rem;font-weight:800;color:#fff;line-height:1.45;
+      text-shadow:0 1px 4px rgba(0,0,0,.7);}
+.pq{font-size:1.2rem;font-weight:700;color:#fff;margin-bottom:12px;line-height:1.6;
+    text-shadow:0 1px 6px rgba(0,0,0,.8);}
+
+/* ===== EQUATION DISPLAY ===== */
+/* The equation box renders y = Nx [+ C] with BIG clear styled tokens */
+.eq-box{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;
+        gap:4px;padding:16px 20px;margin:10px 0 16px;
+        background:rgba(0,0,0,.38);border-radius:12px;
+        border:1.5px solid rgba(0,212,255,.2);}
+/* variable token: y or x */
+.T-VAR{font-family:'Orbitron',monospace;font-size:2.6rem;font-weight:900;
+       color:var(--cyan);line-height:1;text-shadow:0 0 14px rgba(0,212,255,.5);}
+/* operator token: = or + */
+.T-OP {font-family:'Orbitron',monospace;font-size:2.8rem;font-weight:900;
+       color:var(--gold);line-height:1;padding:0 6px;
+       text-shadow:0 0 20px rgba(255,190,11,.8);}
+/* number / coefficient token */
+.T-NUM{font-family:'Orbitron',monospace;font-size:2.6rem;font-weight:900;
+       color:#fff;line-height:1;}
+/* substituted value (green) */
+.T-SUB{font-family:'Orbitron',monospace;font-size:2.6rem;font-weight:900;
+       color:var(--green);line-height:1;text-shadow:0 0 14px rgba(0,255,136,.5);}
+
+/* multiple choice */
+.mc-opts{display:flex;flex-direction:column;gap:8px;margin-top:6px;}
+.mc-btn{width:100%;padding:12px 16px;text-align:left;
+        font-family:'Share Tech Mono','Courier New',monospace;
+        font-size:1rem;font-weight:bold;line-height:1.45;
+        background:rgba(0,212,255,.07);border:1.5px solid rgba(0,212,255,.28);
+        color:#fff;border-radius:9px;cursor:pointer;transition:all .22s;}
+.mc-btn:hover{background:rgba(0,212,255,.18);border-color:var(--cyan);
+              transform:translateX(4px);box-shadow:0 0 14px rgba(0,212,255,.3);}
+.mc-btn.fb-ok {background:rgba(0,255,136,.22);border-color:var(--green);}
+.mc-btn.fb-bad{background:rgba(255,71,87,.22);border-color:var(--red);}
+
+/* text / number input */
+.irow{display:flex;gap:10px;margin:13px 0;flex-wrap:wrap;justify-content:center;}
+.ainput{padding:13px 17px;background:rgba(0,0,0,.58);border:2px solid var(--cyan);
+        color:#fff;font-family:'Share Tech Mono',monospace;font-size:1.4rem;
+        border-radius:9px;min-width:210px;transition:all .25s;
+        box-shadow:inset 0 2px 8px rgba(0,0,0,.4);}
+.ainput:focus{outline:none;box-shadow:0 0 22px rgba(0,212,255,.55),inset 0 2px 8px rgba(0,0,0,.4);
+              border-color:#00efff;transform:scale(1.02);}
+.ainput.shake{animation:shake .4s;}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
+/* buttons */
+.brow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:6px;}
+.btn{padding:12px 26px;font-family:'Share Tech Mono',monospace;font-size:.95rem;font-weight:bold;
+     border-radius:9px;cursor:pointer;transition:all .22s;text-transform:uppercase;letter-spacing:1.5px;
+     border:2px solid var(--cyan);color:var(--cyan);background:rgba(0,212,255,.1);}
+.btn:hover{background:rgba(0,212,255,.22);box-shadow:0 0 20px rgba(0,212,255,.45);transform:translateY(-2px);}
+.btn:active{transform:translateY(0);}
+.btn-ok{border-color:var(--green);color:var(--green);background:rgba(0,255,136,.08);}
+.btn-ok:hover{background:rgba(0,255,136,.2);box-shadow:0 0 20px rgba(0,255,136,.4);}
+.btn-hint{border-color:var(--orange);color:var(--orange);background:rgba(255,165,2,.08);
+          font-size:.85rem;padding:10px 18px;}
+.btn-hint:hover{background:rgba(255,165,2,.2);box-shadow:0 0 16px rgba(255,165,2,.4);}
+
+/* attempt dots + hint */
+.att-bar{text-align:center;font-size:.88rem;color:var(--orange);font-weight:bold;
+         margin:5px 0;letter-spacing:1px;}
+.ex-note{font-size:.9rem;color:rgba(255,255,255,.6);margin-bottom:9px;}
+.hint-box{background:rgba(0,212,255,.08);border-left:4px solid var(--cyan);border-radius:8px;
+          padding:11px 15px;margin-top:11px;font-size:.95rem;color:#fff;font-style:italic;
+          line-height:1.55;animation:slideIn .3s ease-out;}
+@keyframes slideIn{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:translateX(0)}}
+
+/* ===== QUEST LOG / BATTLE LOG ===== */
+#qp{border-color:rgba(255,190,11,.28);}
+.qi{padding:11px 13px;background:rgba(0,212,255,.05);border:1.5px solid rgba(255,190,11,.22);
+    border-radius:9px;cursor:pointer;transition:all .22s;}
+.qi:hover{background:rgba(255,190,11,.12);border-color:var(--gold);transform:translateX(4px);}
+.qi.active{background:rgba(255,190,11,.15);border-color:var(--gold);
+           box-shadow:0 0 13px rgba(255,190,11,.3);}
+.qi.done{opacity:.55;border-color:var(--green);}
+.qi.locked{opacity:.3;cursor:not-allowed;}
+.qi-n{font-weight:bold;color:var(--cyan);font-size:.82rem;margin-bottom:3px;}
+.qi-s{font-size:.68rem;color:var(--muted);margin-bottom:2px;}
+.qi-r{font-size:.68rem;color:var(--green);font-weight:bold;}
+.log-ph{font-size:.62rem;color:var(--gold);text-transform:uppercase;letter-spacing:2px;
+        font-weight:bold;padding:10px 0 4px;margin-top:8px;border-top:1px solid var(--border);}
+#logbox{display:flex;flex-direction:column;gap:4px;max-height:190px;overflow-y:auto;}
+.le{font-size:.75rem;padding:6px 9px;border-radius:6px;background:rgba(0,0,0,.25);
+    border-left:3px solid var(--border);color:var(--muted);animation:slideIn .28s ease-out;}
+.le.ok  {border-color:var(--green);color:var(--green);}
+.le.bad {border-color:var(--red);color:var(--red);}
+.le.info{border-color:var(--gold);color:var(--gold);}
+
+/* ===== FLOATING FEEDBACK ===== */
+.fpop{position:fixed;pointer-events:none;z-index:999;
+      font-family:'Orbitron',monospace;font-size:2.2rem;font-weight:900;
+      top:50%;left:50%;transform:translate(-50%,-50%);
+      animation:fpopAnim .9s cubic-bezier(.34,1.56,.64,1) forwards;
+      text-shadow:0 0 28px currentColor;}
+@keyframes fpopAnim{
+  0%  {opacity:1;transform:translate(-50%,-50%) scale(.3);}
+  55% {opacity:1;transform:translate(-50%,-75%) scale(1.1);}
+  100%{opacity:0;transform:translate(-50%,-115%) scale(.9);}
+}
+.fp-ok {color:var(--green);}
+.fp-bad{color:var(--red);}
+.particle{position:fixed;pointer-events:none;z-index:500;border-radius:50%;}
+
+/* ===== STREAK BANNER ===== */
+#streak-banner{position:fixed;top:18px;left:50%;transform:translateX(-50%);
+  font-family:'Orbitron',monospace;font-size:1.35rem;font-weight:900;
+  color:var(--gold);z-index:200;pointer-events:none;
+  text-shadow:0 0 22px rgba(255,190,11,.9);display:none;
+  animation:streakAnim .5s ease-out;}
+@keyframes streakAnim{0%{transform:translateX(-50%) scale(.5)}60%{transform:translateX(-50%) scale(1.2)}100%{transform:translateX(-50%) scale(1)}}
+
+/* ===== MODALS ===== */
+.mbg{display:none;position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.84);
+     backdrop-filter:blur(8px);align-items:center;justify-content:center;}
+.mbg.show{display:flex;animation:fadeIn .25s ease-out;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.mbox{background:linear-gradient(145deg,rgba(18,28,52,.98),rgba(12,20,40,.98));
+      border:2px solid var(--cyan);border-radius:18px;padding:42px 46px;
+      max-width:520px;width:92%;text-align:center;
+      box-shadow:0 24px 64px rgba(0,0,0,.7),0 0 40px rgba(0,212,255,.1);
+      animation:mboxIn .4s cubic-bezier(.34,1.56,.64,1);}
+@keyframes mboxIn{from{opacity:0;transform:translateY(-38px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+.mtitle{font-family:'Orbitron',monospace;font-size:1.9rem;font-weight:900;margin-bottom:10px;}
+.memoji{font-size:3.8rem;margin:12px 0;}
+.mreward{font-size:1.2rem;color:var(--gold);font-weight:bold;margin:9px 0 18px;}
+.mmsg{font-size:.92rem;color:var(--muted);line-height:1.65;margin-bottom:22px;}
+.mbox input{width:100%;max-width:340px;padding:13px 17px;margin-bottom:18px;
+            background:rgba(0,0,0,.58);border:2px solid var(--cyan);color:#fff;
+            font-family:'Share Tech Mono',monospace;font-size:1.15rem;border-radius:9px;}
+.mbox input:focus{outline:none;box-shadow:0 0 20px rgba(0,212,255,.5);}
+.mbox p{color:var(--muted);font-size:.95rem;line-height:1.6;margin-bottom:20px;}
+.mbox h2{font-family:'Orbitron',monospace;font-size:1.55rem;color:var(--cyan);margin-bottom:12px;}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:1100px){
+  #app{grid-template-columns:1fr;height:auto;overflow:auto;}
+  #char-panel,#qp{max-height:150px;}
+}
+@media(max-width:700px){
+  #char-panel,#qp{display:none;}
+  #app{padding:8px;}
+  .sprite{font-size:3.2rem;}
+}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,212,255,.22);border-radius:3px}
+</style>
+</head>
+<body>
+<!-- BG -->
+<div id="bg"><div class="stars"></div><div class="grid"></div></div>
+<!-- STREAK -->
+<div id="streak-banner"></div>
+
+<div id="app">
+
+  <!-- LEFT: CHARACTER -->
+  <div class="panel" id="char-panel">
+    <div class="ph">&#x1F9D9; Character</div>
+    <div class="pb">
+      <div class="avatar"  id="cAvatar">&#x1F9D9;</div>
+      <div class="cname"   id="cName">Scholar</div>
+      <div class="ctitle"  id="cTitle">Equation Novice</div>
+      <div class="sblock">
+        <div class="slr"><span class="lbl">HP</span><span class="val" id="sHp">100/100</span></div>
+        <div class="track"><div class="fill fill-hp"   id="bHp"   style="width:100%"></div></div>
+      </div>
+      <div class="sblock">
+        <div class="slr"><span class="lbl">Mana</span><span class="val" id="sMana">50/50</span></div>
+        <div class="track"><div class="fill fill-mana" id="bMana" style="width:100%"></div></div>
+      </div>
+      <div class="sblock">
+        <div class="slr"><span class="lbl">XP</span><span class="val" id="sXp">0/100</span></div>
+        <div class="track"><div class="fill fill-xp"   id="bXp"   style="width:0%"></div></div>
+      </div>
+      <div class="srow"><span class="lbl">Level</span><span class="val" id="sLv">1</span></div>
+      <div class="srow"><span class="lbl">Quests Won</span><span class="val" id="sQW">0</span></div>
+      <div class="srow"><span class="lbl">Streak</span><span class="val" id="sStr">0</span></div>
+      <div class="etitle">&#x2694;&#xFE0F; Equipment</div>
+      <div class="eitem"><span class="eicon">&#x1F5E1;&#xFE0F;</span><span class="ename" id="eW">Wooden Sword</span><span class="ebonus" id="eWb">+1 ATK</span></div>
+      <div class="eitem"><span class="eicon">&#x1F6E1;&#xFE0F;</span><span class="ename" id="eA">Cloth Armor</span><span class="ebonus" id="eAb">+1 DEF</span></div>
+      <div class="eitem"><span class="eicon">&#x1F48E;</span><span class="ename" id="eM">Novice Amulet</span><span class="ebonus" id="eMb">+5 XP</span></div>
+    </div>
+  </div>
+
+  <!-- CENTER: BATTLE -->
+  <div class="panel" id="ba">
+    <div class="qhdr">
+      <div class="qtitle" id="qTitle">Academy Trial</div>
+      <div class="qsub"   id="qSub">Defeat the Equation Guardian</div>
+    </div>
+    <div class="eprog">
+      <div class="eprog-lbl"><span>Enemy HP</span><span id="eHpLbl">60 / 60</span></div>
+      <div class="eprog-track"><div class="eprog-fill" id="eHpFill" style="width:100%"></div></div>
+    </div>
+    <div class="combatants">
+      <div class="combatant">
+        <div class="sprite"    id="pSprite">&#x1F9D9;</div>
+        <div class="cname-lbl" id="pCName">You</div>
+        <div class="chp-lbl"><span id="pHpN">100</span> HP</div>
+        <div class="cbar-wrap"><div class="cbar-fill" id="pHpBar"></div></div>
+      </div>
+      <div class="vs">VS</div>
+      <div class="combatant">
+        <div class="sprite esprite" id="eSprite">&#x1F916;</div>
+        <div class="cname-lbl"     id="eCName">Equation Guardian</div>
+        <div class="chp-lbl"><span id="eHpN">60</span> HP</div>
+        <div class="cbar-wrap"><div class="cbar-fill" id="eHpBar"></div></div>
+      </div>
+    </div>
+    <div id="pa">
+      <div class="rflash" id="rflash"></div>
+      <div id="pc"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: QUEST LOG -->
+  <div class="panel" id="qp">
+    <div class="ph">&#x1F4DC; Quest Log</div>
+    <div class="pb">
+      <div id="qlist"></div>
+      <div class="log-ph">&#x1F4E3; Battle Log</div>
+      <div id="logbox"></div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- RESULT MODAL -->
+<div class="mbg" id="rModal">
+  <div class="mbox">
+    <div class="mtitle"  id="mTitle">Victory!</div>
+    <div class="memoji"  id="mEmoji">&#x1F389;</div>
+    <div class="mreward" id="mReward">+250 XP</div>
+    <div class="mmsg"    id="mMsg"></div>
+    <button class="btn btn-ok" id="contBtn">Continue &#x2192;</button>
+  </div>
+</div>
+
+<!-- NAME MODAL -->
+<div class="mbg show" id="nameModal">
+  <div class="mbox">
+    <h2>&#x2694;&#xFE0F; Equation Quest RPG</h2>
+    <p>Master 6th-grade equations in an epic RPG adventure!<br>What is your hero&#x2019;s name?</p>
+    <input type="text" id="nameInput" placeholder="Enter your name..." maxlength="20">
+    <button class="btn btn-ok" id="startBtn" style="width:100%;margin-top:6px;">Begin Quest &#x2192;</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  UTILITY FUNCTIONS  — defined at true global scope
+//  These must stay outside any IIFE or object wrapper so they
+//  are reachable from HTML onclick attributes and all methods.
+// ============================================================
+
+/** Evaluate y = coeff*x + constant using pure arithmetic */
+function calcY(coeff, constant, xVal) {
+  return coeff * xVal + constant;
+}
+
+/**
+ * Normalize an equation string for comparison.
+ * Strips: whitespace, asterisks, leading "y="
+ * Uses a character class so no double-backslash ambiguity.
+ */
+function normEq(s) {
+  var clean = String(s).toLowerCase();
+  // Remove all spaces and asterisks
+  var out = '';
+  for (var i = 0; i < clean.length; i++) {
+    var c = clean[i];
+    if (c !== ' ' && c !== '*') out += c;
+  }
+  // Remove leading "y="
+  if (out.indexOf('y=') === 0) out = out.slice(2);
+  return out;
+}
+
+/** Canonical correct string: "15x" or "10x+5" */
+function correctStr(coeff, constant) {
+  return constant === 0 ? (coeff + 'x') : (coeff + 'x+' + constant);
+}
+
+/** Build styled equation HTML tokens */
+function eqHTML(coeff, constant) {
+  var h = '<span class="T-VAR">y</span>'
+        + '<span class="T-OP">=</span>'
+        + '<span class="T-NUM">' + coeff + '</span>'
+        + '<span class="T-VAR">x</span>';
+  if (constant !== 0) {
+    h += '<span class="T-OP">+</span>'
+       + '<span class="T-NUM">' + constant + '</span>';
+  }
+  return '<div class="eq-box">' + h + '</div>';
+}
+
+function rnd(n)        { return Math.floor(Math.random() * n); }
+function clamp(v,a,b)  { return v < a ? a : v > b ? b : v; }
+function pct(v,m)      { return clamp(v/m*100, 0, 100) + '%'; }
+
+// ============================================================
+//  GAME DATA
+// ============================================================
+var QUESTS = [
+  { id:1, name:'Academy Trial', sub:'Defeat the Equation Guardian',
+    diff:1, reward:{xp:250}, completed:false,
+    enemy:{name:'Equation Guardian', hp:60, avatar:'&#x1F916;'},
+    sc:[
+      { ctx:'Pizza Pricing: Each pizza costs $15',
+        indep:'Pizzas (x)', dep:'Total Cost (y)', coeff:15, constant:0, d:1,
+        hint:'Each pizza is $15. Multiply: y = 15 times x. Answer: y = 15x' },
+      { ctx:'Concert Tickets: Each ticket costs $25',
+        indep:'Tickets (x)', dep:'Total Spent (y)', coeff:25, constant:0, d:1,
+        hint:'Total spent = $25 times number of tickets. Answer: y = 25x' },
+      { ctx:'Movie Snacks: Each snack costs $8',
+        indep:'Snacks (x)', dep:'Total Spent (y)', coeff:8, constant:0, d:1,
+        hint:'Total spent = $8 times number of snacks. Answer: y = 8x' },
+      { ctx:'Stickers: Each pack of stickers costs $2',
+        indep:'Packs (x)', dep:'Total Cost (y)', coeff:2, constant:0, d:1,
+        hint:'Total cost = $2 times number of packs. Answer: y = 2x' }
+    ]
+  },
+  { id:2, name:'Chamber of Relationships', sub:'Master dependent and independent variables',
+    diff:2, reward:{xp:400}, completed:false, locked:true,
+    enemy:{name:'Variable Wraith', hp:80, avatar:'&#x1F300;'},
+    sc:[
+      { ctx:'Lemonade Stand: Each cup sells for $2',
+        indep:'Cups (x)', dep:'Money Earned (y)', coeff:2, constant:0, d:2,
+        hint:'Money earned = $2 times cups sold. Answer: y = 2x' },
+      { ctx:'Garden: Each row needs 8 plants',
+        indep:'Rows (x)', dep:'Plants Needed (y)', coeff:8, constant:0, d:2,
+        hint:'Total plants = 8 times rows. Answer: y = 8x' },
+      { ctx:'Book Rental: Each book costs $4',
+        indep:'Books (x)', dep:'Total Cost (y)', coeff:4, constant:0, d:2,
+        hint:'Total cost = $4 times number of books. Answer: y = 4x' }
+    ]
+  },
+  { id:3, name:'The Coefficient Tower', sub:'Equations with a starting amount',
+    diff:3, reward:{xp:600}, completed:false, locked:true,
+    enemy:{name:'Coefficient Dragon', hp:100, avatar:'&#x1F409;'},
+    sc:[
+      { ctx:'Bike Rental: $10 per hour PLUS a $5 deposit',
+        indep:'Hours (x)', dep:'Total Cost (y)', coeff:10, constant:5, d:3,
+        hint:'Total cost = (10 times hours) + 5. Answer: y = 10x + 5' },
+      { ctx:'Book Club: $3 per book PLUS $20 membership fee',
+        indep:'Books (x)', dep:'Total Spent (y)', coeff:3, constant:20, d:3,
+        hint:'Total spent = (3 times books) + 20. Answer: y = 3x + 20' },
+      { ctx:'Gym: $30 per month PLUS a $50 sign-up fee',
+        indep:'Months (x)', dep:'Total Cost (y)', coeff:30, constant:50, d:3,
+        hint:'Total cost = (30 times months) + 50. Answer: y = 30x + 50' }
+    ]
+  },
+  { id:4, name:'Final Exam: Equation Master', sub:'Claim your title as Equation Master',
+    diff:4, reward:{xp:1000}, completed:false, locked:true,
+    enemy:{name:'The Equation Lord', hp:150, avatar:'&#x1F451;'},
+    sc:[
+      { ctx:'Business: $15 per item sold PLUS $30 startup cost',
+        indep:'Items Sold (x)', dep:'Profit (y)', coeff:15, constant:30, d:4,
+        hint:'Profit = (15 times items) + 30. Answer: y = 15x + 30' },
+      { ctx:'Streaming: $12 per month PLUS a $25 device fee',
+        indep:'Months (x)', dep:'Total Cost (y)', coeff:12, constant:25, d:4,
+        hint:'Total cost = (12 times months) + 25. Answer: y = 12x + 25' }
+    ]
+  }
+];
+
+var EQ_TIERS = [
+  [{n:'Iron Sword',b:'+2 ATK'},{n:'Iron Armor',b:'+2 DEF'},{n:'Apprentice Amulet',b:'+10 XP'}],
+  [{n:'Steel Blade',b:'+3 ATK'},{n:'Steel Armor',b:'+3 DEF'},{n:'Scholar Amulet',b:'+20 XP'}],
+  [{n:'Crystal Sword',b:'+5 ATK'},{n:'Crystal Armor',b:'+5 DEF'},{n:'Master Amulet',b:'+50 XP'}]
+];
+var TITLES = ['Equation Novice','Equation Apprentice','Equation Adept','Equation Master','Legendary Mathematician'];
+
+// ============================================================
+//  GAME OBJECT
+// ============================================================
+var G = {
+  ch: {
+    name:'Scholar', title:'Equation Novice', avatar:'&#x1F9D9;',
+    level:1, xp:0, xpNeeded:100,
+    maxHp:100, hp:100, maxMana:50, mana:50,
+    questsWon:0, streak:0,
+    equip:{ w:{n:'Wooden Sword',b:'+1 ATK'}, a:{n:'Cloth Armor',b:'+1 DEF'}, m:{n:'Novice Amulet',b:'+5 XP'} }
+  },
+  quests: QUESTS,
+  qid:1,
+  battle:null,
+  // current problem state
+  sc:null,        // current scenario object
+  ptype:null,     // 'identify' | 'write' | 'analyze'
+  anaAns:null,    // integer answer for analyze type
+  attempts:0,
+  hintUsed:false,
+  synth:null,
+
+  // ── Audio ──────────────────────────────────────────────────
+  initAudio: function() {
+    if (!this.synth && typeof Tone !== 'undefined') {
+      try {
+        this.synth = new Tone.PolySynth(Tone.Synth, {
+          oscillator:{type:'square'},
+          envelope:{attack:.005,decay:.12,sustain:0,release:.1}
+        }).toDestination();
+        this.synth.volume.value = -12;
+      } catch(e) {}
+    }
+  },
+  beep: function(freqs, dur) {
+    var self = this;
+    try {
+      this.initAudio();
+      if (!this.synth) return;
+      if (!Array.isArray(freqs)) freqs = [freqs];
+      freqs.forEach(function(f,i){ setTimeout(function(){ try{ self.synth.triggerAttackRelease(f, dur||.12); }catch(e){} }, i*80); });
+    } catch(e){}
+  },
+  sndOk:  function(){ this.beep([523,659,784],.15); },
+  sndBad: function(){ this.beep([220,196],.18); },
+  sndWin: function(){ this.beep([523,659,784,1047],.2); },
+  sndDef: function(){ this.beep([330,220,165],.25); },
+
+  // ── Start ──────────────────────────────────────────────────
+  startWithName: function() {
+    var n = document.getElementById('nameInput').value.trim();
+    if (!n) { alert('Please enter a name!'); return; }
+    this.ch.name = n;
+    document.getElementById('nameModal').classList.remove('show');
+    this.renderChar();
+    this.renderQL();
+    this.startQuest(1);
+  },
+
+  // ── Render Character ──────────────────────────────────────
+  renderChar: function() {
+    var c = this.ch;
+    document.getElementById('cAvatar').innerHTML   = c.avatar;
+    document.getElementById('cName').textContent   = c.name;
+    document.getElementById('cTitle').textContent  = c.title;
+    document.getElementById('sHp').textContent     = c.hp + '/' + c.maxHp;
+    document.getElementById('sMana').textContent   = c.mana + '/' + c.maxMana;
+    document.getElementById('sXp').textContent     = c.xp + '/' + c.xpNeeded;
+    document.getElementById('sLv').textContent     = c.level;
+    document.getElementById('sQW').textContent     = c.questsWon;
+    document.getElementById('sStr').textContent    = c.streak;
+    document.getElementById('bHp').style.width     = pct(c.hp, c.maxHp);
+    document.getElementById('bMana').style.width   = pct(c.mana, c.maxMana);
+    document.getElementById('bXp').style.width     = pct(c.xp, c.xpNeeded);
+    document.getElementById('pSprite').innerHTML   = c.avatar;
+    document.getElementById('pCName').textContent  = c.name;
+    document.getElementById('pHpN').textContent    = Math.max(0,c.hp);
+    document.getElementById('pHpBar').style.width  = pct(c.hp, c.maxHp);
+    document.getElementById('eW').textContent      = c.equip.w.n;
+    document.getElementById('eWb').textContent     = c.equip.w.b;
+    document.getElementById('eA').textContent      = c.equip.a.n;
+    document.getElementById('eAb').textContent     = c.equip.a.b;
+    document.getElementById('eM').textContent      = c.equip.m.n;
+    document.getElementById('eMb').textContent     = c.equip.m.b;
+  },
+
+  // ── Render Enemy ──────────────────────────────────────────
+  renderEnemy: function() {
+    var e = this.battle.enemy;
+    document.getElementById('eSprite').innerHTML  = e.avatar;
+    document.getElementById('eCName').textContent = e.name;
+    document.getElementById('eHpN').textContent   = Math.max(0, e.hp);
+    document.getElementById('eHpBar').style.width = pct(e.hp, e.maxHp);
+    document.getElementById('eHpLbl').textContent = Math.max(0,e.hp) + ' / ' + e.maxHp;
+    document.getElementById('eHpFill').style.width= pct(e.hp, e.maxHp);
+  },
+
+  // ── Quest Log ─────────────────────────────────────────────
+  renderQL: function() {
+    var el = document.getElementById('qlist');
+    el.innerHTML = '';
+    var self = this;
+    this.quests.forEach(function(q) {
+      var d = document.createElement('div');
+      d.className = 'qi' + (q.id===self.qid?' active':'') + (q.completed?' done':'') + (q.locked?' locked':'');
+      if (!q.locked) { (function(id){ d.onclick=function(){ self.startQuest(id); }; })(q.id); }
+      var stars=''; for(var i=0;i<q.diff;i++) stars+='&#x2B50;';
+      d.innerHTML = '<div class="qi-n">'+(q.completed?'&#x2713; ':'')+q.name+'</div>'
+        +'<div class="qi-s">'+stars+'</div>'
+        +'<div class="qi-r">+'+q.reward.xp+' XP</div>';
+      el.appendChild(d);
+    });
+  },
+
+  // ── Battle Log ────────────────────────────────────────────
+  log: function(msg, type) {
+    var el = document.getElementById('logbox');
+    var d  = document.createElement('div');
+    d.className = 'le ' + (type||'');
+    d.textContent = msg;
+    el.insertBefore(d, el.firstChild);
+    while (el.children.length > 14) el.removeChild(el.lastChild);
+  },
+
+  // ── Start Quest ───────────────────────────────────────────
+  startQuest: function(id) {
+    var quest = null;
+    for (var i=0;i<this.quests.length;i++) { if(this.quests[i].id===id){quest=this.quests[i];break;} }
+    if (!quest || quest.locked) return;
+    this.qid = id;
+    this.ch.hp   = this.ch.maxHp;
+    this.ch.mana = this.ch.maxMana;
+    this.battle  = {
+      enemy:{ name:quest.enemy.name, avatar:quest.enemy.avatar,
+              hp:quest.enemy.hp, maxHp:quest.enemy.hp },
+      quest:quest, round:0
+    };
+    document.getElementById('qTitle').textContent = quest.name;
+    document.getElementById('qSub').textContent   = quest.sub;
+    this.renderChar();
+    this.renderEnemy();
+    this.renderQL();
+    this.log('Quest started: ' + quest.name, 'info');
+    this.genProblem();
+  },
+
+  // ── Generate Problem ──────────────────────────────────────
+  genProblem: function() {
+    this.attempts  = 0;
+    this.hintUsed  = false;
+    this.sc        = null;
+    this.anaAns    = null;
+
+    var quest      = this.battle.quest;
+    var targetDiff = Math.min(this.battle.round + 1, quest.diff);
+    var pool       = [];
+    for (var i=0;i<quest.sc.length;i++) { if(quest.sc[i].d===targetDiff) pool.push(quest.sc[i]); }
+    if (!pool.length) pool = quest.sc;
+    var sc    = pool[rnd(pool.length)];
+    this.sc   = sc;
+
+    var types = ['identify','write','analyze'];
+    var type  = types[rnd(3)];
+    this.ptype = type;
+
+    var html = '<div class="pctx">&#x1F4DA; ' + sc.ctx + '</div>';
+
+    if (type === 'identify') {
+      html += '<div class="pq">Which option correctly identifies the '
+            + '<strong>independent variable (x)</strong> and the '
+            + '<strong>dependent variable (y)</strong>?</div>';
+      var opts = [
+        { txt:'Independent (x): ' + sc.indep + ' &nbsp;|&nbsp; Dependent (y): ' + sc.dep, ok:true },
+        { txt:'Independent (x): ' + sc.dep   + ' &nbsp;|&nbsp; Dependent (y): ' + sc.indep, ok:false },
+        { txt:'Both variables are independent of each other', ok:false }
+      ];
+      // Fisher-Yates shuffle
+      for (var s=opts.length-1; s>0; s--) {
+        var r=rnd(s+1); var t=opts[s]; opts[s]=opts[r]; opts[r]=t;
+      }
+      html += '<div class="mc-opts">';
+      for (var j=0; j<opts.length; j++) {
+        html += '<button class="mc-btn" data-ok="' + (opts[j].ok?'1':'0')
+              + '" onclick="G.pickID(this)">'
+              + String.fromCharCode(65+j) + ')&nbsp; ' + opts[j].txt + '</button>';
+      }
+      html += '</div>';
+
+    } else if (type === 'write') {
+      html += '<div class="pq">Write the equation for <span class="T-VAR" style="font-size:1.5rem;">y</span>'
+            + ' <span class="T-OP" style="font-size:1.7rem;">=</span>'
+            + ' ... in terms of <span class="T-VAR" style="font-size:1.5rem;">x</span></div>';
+      html += eqHTML(sc.coeff, sc.constant).replace('eq-box','eq-box" style="opacity:.25;filter:blur(3px)');
+      if (sc.constant === 0) {
+        html += '<div class="ex-note">&#x1F4AC; Format: &nbsp;<strong>y = 15x</strong></div>';
+      } else {
+        html += '<div class="ex-note">&#x1F4AC; Format: &nbsp;<strong>y = 10x + 5</strong></div>';
+      }
+      html += '<div class="irow"><input class="ainput" type="text" id="ai" placeholder="y = ..." autocomplete="off"></div>';
+      html += '<div class="att-bar" id="ab"></div>';
+      html += '<div class="brow">'
+            + '<button class="btn btn-ok"   onclick="G.checkWrite()">&#x2713; Submit</button>'
+            + '<button class="btn btn-hint" onclick="G.showHint()">&#x1F4A1; Hint</button>'
+            + '</div><div id="ha"></div>';
+
+    } else {
+      // analyze
+      var xVal = rnd(10) + 1;
+      var yVal = calcY(sc.coeff, sc.constant, xVal);
+      this.anaAns = yVal;   // stored as integer
+
+      html += '<div class="pq">Using the equation:</div>';
+      html += eqHTML(sc.coeff, sc.constant);
+      html += '<div class="pq">'
+            + 'If &nbsp;<span class="T-SUB" style="font-size:1.9rem;">x&nbsp;=&nbsp;' + xVal + '</span>'
+            + '&nbsp; what is the value of &nbsp;'
+            + '<span class="T-VAR" style="font-size:1.9rem;">y</span>&nbsp;?'
+            + '</div>';
+      html += '<div class="irow"><input class="ainput" type="number" id="ai" placeholder="Enter the value of y"></div>';
+      html += '<div class="att-bar" id="ab"></div>';
+      html += '<div class="brow">'
+            + '<button class="btn btn-ok"   onclick="G.checkAnalyze()">&#x2713; Submit</button>'
+            + '<button class="btn btn-hint" onclick="G.showHint()">&#x1F4A1; Hint</button>'
+            + '</div><div id="ha"></div>';
+    }
+
+    document.getElementById('pc').innerHTML = html;
+    this.updateAtt();
+
+    // Bind Enter key
+    var self = this;
+    var inp  = document.getElementById('ai');
+    if (inp) {
+      inp.addEventListener('keypress', function(e) {
+        if (e.key !== 'Enter') return;
+        if (self.ptype === 'write')   self.checkWrite();
+        if (self.ptype === 'analyze') self.checkAnalyze();
+      });
+      setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 60);
+    }
+  },
+
+  updateAtt: function() {
+    var el = document.getElementById('ab');
+    if (!el) return;
+    var rem  = 3 - this.attempts;
+    var dots = '';
+    for (var i=0; i<3; i++) dots += (i<rem ? '&#x25CF;' : '&#x25CB;') + ' ';
+    el.innerHTML = 'Attempts remaining: &nbsp;' + dots;
+  },
+
+  showHint: function() {
+    if (this.hintUsed) { this.popup('Already used!', false); return; }
+    this.hintUsed = true;
+    var ha = document.getElementById('ha');
+    if (ha && this.sc) ha.innerHTML = '<div class="hint-box">&#x1F4A1; ' + this.sc.hint + '</div>';
+    this.log('Hint used', 'info');
+  },
+
+  // ── Answer Handlers ───────────────────────────────────────
+  pickID: function(btn) {
+    var ok = btn.getAttribute('data-ok') === '1';
+    btn.classList.add(ok ? 'fb-ok' : 'fb-bad');
+    var self = this;
+    setTimeout(function(){ btn.classList.remove('fb-ok','fb-bad'); }, 600);
+    this.resolve(ok);
+  },
+
+  checkWrite: function() {
+    if (!this.sc) return;
+    var inp = document.getElementById('ai');
+    if (!inp) return;
+    var answer  = normEq(inp.value);
+    var correct = normEq(correctStr(this.sc.coeff, this.sc.constant));
+    if (answer === correct) {
+      this.resolve(true);
+    } else {
+      this.miss(inp);
+    }
+  },
+
+  checkAnalyze: function() {
+    var inp = document.getElementById('ai');
+    if (!inp) return;
+    // Parse as float, then compare to integer anaAns
+    // Both will equal if student types e.g. "4" -> 4.0 === 4 is true in JS
+    var val = parseFloat(inp.value);
+    if (!isNaN(val) && val === this.anaAns) {
+      this.resolve(true);
+    } else {
+      this.miss(inp);
+    }
+  },
+
+  miss: function(inp) {
+    this.attempts++;
+    if (inp) {
+      inp.classList.add('shake');
+      setTimeout(function(){ inp.classList.remove('shake'); }, 450);
+    }
+    if (this.attempts < 3) {
+      this.sndBad();
+      this.popup('&#x2717; Try Again!', false);
+      if (inp) inp.value = '';
+      this.updateAtt();
+      this.flash(false);
+    } else {
+      this.ch.hp     = Math.max(0, this.ch.hp - 20);
+      this.ch.streak = 0;
+      this.sndBad();
+      this.popup('&#x2717; Out of Attempts!', false);
+      this.log('Out of attempts — lost 20 HP', 'bad');
+      this.flash(false);
+      this.particles(10, '#ff4757');
+      this.renderChar();
+      var self = this;
+      setTimeout(function(){ self.genProblem(); }, 1400);
+    }
+  },
+
+  resolve: function(ok) {
+    var self = this;
+    if (ok) {
+      var dmg = 18 + rnd(14);
+      this.battle.enemy.hp = Math.max(0, this.battle.enemy.hp - dmg);
+      this.ch.streak++;
+      this.sndOk();
+      this.popup('&#x2713; HIT! &minus;' + dmg, true);
+      this.log('Correct! Enemy takes ' + dmg + ' damage. Streak: ' + this.ch.streak, 'ok');
+      this.particles(28, '#00ff88');
+      this.sparkles(18);
+      this.flash(true);
+      if (this.ch.streak >= 3) {
+        var sb = document.getElementById('streak-banner');
+        sb.innerHTML = '&#x1F525; ' + this.ch.streak + 'x STREAK!';
+        sb.style.display = 'block';
+        setTimeout(function(){ sb.style.display='none'; }, 1800);
+      }
+    } else {
+      var dmg2 = 12 + rnd(8);
+      this.ch.hp     = Math.max(0, this.ch.hp - dmg2);
+      this.ch.streak = 0;
+      this.sndBad();
+      this.popup('&#x2717; MISS! &minus;' + dmg2 + ' HP', false);
+      this.log('Incorrect — you take ' + dmg2 + ' damage', 'bad');
+      this.particles(14, '#ff4757');
+      this.flash(false);
+    }
+    this.ch.mana = Math.max(0, this.ch.mana - 5);
+    this.battle.round++;
+    this.renderChar();
+    this.renderEnemy();
+
+    if (this.battle.enemy.hp <= 0) {
+      setTimeout(function(){ self.victory(); }, 650);
+    } else if (this.ch.hp <= 0) {
+      setTimeout(function(){ self.defeat(); }, 650);
+    } else {
+      setTimeout(function(){ self.genProblem(); }, 900);
+    }
+  },
+
+  flash: function(ok) {
+    var el = document.getElementById('rflash');
+    el.className = 'rflash ' + (ok ? 'rf-ok' : 'rf-bad');
+    setTimeout(function(){ el.className = 'rflash'; }, 460);
+  },
+
+  // ── Quest End ─────────────────────────────────────────────
+  victory: function() {
+    var quest = null;
+    for(var i=0;i<this.quests.length;i++){if(this.quests[i].id===this.qid){quest=this.quests[i];break;}}
+    quest.completed = true;
+    this.ch.questsWon++;
+    this.ch.xp += quest.reward.xp;
+    var leveled = false;
+    while (this.ch.xp >= this.ch.xpNeeded) {
+      this.ch.xp      -= this.ch.xpNeeded;
+      this.ch.level++;
+      this.ch.maxHp   += 20; this.ch.hp   = this.ch.maxHp;
+      this.ch.maxMana += 10; this.ch.mana = this.ch.maxMana;
+      this.ch.xpNeeded = Math.floor(this.ch.xpNeeded * 1.4);
+      this.ch.title    = TITLES[Math.min(this.ch.level-1, TITLES.length-1)];
+      var tier = Math.min(this.ch.level-2, EQ_TIERS.length-1);
+      if (tier >= 0) {
+        this.ch.equip.w = EQ_TIERS[tier][0];
+        this.ch.equip.a = EQ_TIERS[tier][1];
+        this.ch.equip.m = EQ_TIERS[tier][2];
+      }
+      leveled = true;
+    }
+    if (quest.id < this.quests.length) this.quests[quest.id].locked = false;
+    this.sndWin();
+    this.particles(70, '#ffbe0b');
+    this.sparkles(35);
+    var msg = 'You defeated ' + quest.enemy.name + '!';
+    if (leveled) msg += ' Level up to Level ' + this.ch.level + '!';
+    document.getElementById('mTitle').textContent  = quest.name + ' Complete!';
+    document.getElementById('mEmoji').innerHTML    = '&#x1F389;';
+    document.getElementById('mReward').textContent = '+' + quest.reward.xp + ' XP' + (leveled ? '  |  Level Up!' : '');
+    document.getElementById('mMsg').textContent    = msg;
+    document.getElementById('rModal').classList.add('show');
+    this.log('VICTORY: ' + quest.name, 'info');
+    this.renderChar(); this.renderQL();
+  },
+
+  defeat: function() {
+    this.sndDef();
+    document.getElementById('mTitle').textContent  = 'Defeated!';
+    document.getElementById('mEmoji').innerHTML    = '&#x1F494;';
+    document.getElementById('mReward').textContent = 'No reward this time...';
+    document.getElementById('mMsg').textContent    = 'You were defeated by ' + this.battle.enemy.name + '. Rest up and try again!';
+    document.getElementById('rModal').classList.add('show');
+    this.log('DEFEAT by ' + this.battle.enemy.name, 'bad');
+    var self = this;
+    setTimeout(function(){ document.getElementById('rModal').classList.remove('show'); self.startQuest(self.qid); }, 3000);
+  },
+
+  next: function() {
+    document.getElementById('rModal').classList.remove('show');
+    var next = null;
+    for(var i=0;i<this.quests.length;i++){
+      if(!this.quests[i].completed && !this.quests[i].locked){next=this.quests[i];break;}
+    }
+    if (next) {
+      this.startQuest(next.id);
+    } else {
+      document.getElementById('mTitle').textContent  = 'All Quests Complete!';
+      document.getElementById('mEmoji').innerHTML    = '&#x1F3C6;';
+      document.getElementById('mReward').textContent = 'Legendary Mathematician!';
+      document.getElementById('mMsg').textContent    = 'You have mastered every equation. Outstanding work, ' + this.ch.name + '!';
+      document.getElementById('rModal').classList.add('show');
+    }
+  },
+
+  // ── Effects ───────────────────────────────────────────────
+  popup: function(html, ok) {
+    var el = document.createElement('div');
+    el.className = 'fpop ' + (ok ? 'fp-ok' : 'fp-bad');
+    el.innerHTML = html;
+    document.body.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 950);
+  },
+
+  particles: function(n, color) {
+    for (var i=0;i<n;i++) {
+      (function(idx) {
+        var p  = document.createElement('div');
+        p.className = 'particle';
+        var sz = Math.random()*10+4;
+        p.style.cssText = 'left:'+(window.innerWidth/2)+'px;top:'+(window.innerHeight/2)
+          +'px;width:'+sz+'px;height:'+sz+'px;background:'+color+';';
+        document.body.appendChild(p);
+        var dist = Math.random()*160+60;
+        var ang  = (Math.PI*2*idx)/n;
+        var dur  = Math.random()*1.1+0.5;
+        if (typeof gsap !== 'undefined') {
+          gsap.to(p,{x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,opacity:0,
+                     duration:dur,ease:'power2.out',onComplete:function(){p.remove();}});
+        } else { setTimeout(function(){p.remove();},1200); }
+      })(i);
+    }
+  },
+
+  sparkles: function(n) {
+    for (var i=0;i<n;i++) {
+      (function() {
+        var s  = document.createElement('div');
+        s.className = 'particle';
+        s.style.cssText = 'left:'+(window.innerWidth/2)+'px;top:'+(window.innerHeight/2)
+          +'px;border-radius:0;font-size:1.3rem;';
+        s.textContent = String.fromCodePoint(10024); // ✨
+        document.body.appendChild(s);
+        var dist = Math.random()*190+80;
+        var ang  = Math.random()*Math.PI*2;
+        var dur  = Math.random()*1.4+0.9;
+        if (typeof gsap !== 'undefined') {
+          gsap.to(s,{x:Math.cos(ang)*dist,y:Math.sin(ang)*dist,opacity:0,
+                     scale:.5,rotation:rnd(360),duration:dur,ease:'power2.out',
+                     onComplete:function(){s.remove();}});
+        } else { setTimeout(function(){s.remove();},1500); }
+      })();
+    }
+  }
+};
+
+// ── Wire buttons ──────────────────────────────────────────────
+document.getElementById('startBtn').addEventListener('click',  function(){ G.startWithName(); });
+document.getElementById('nameInput').addEventListener('keypress', function(e){ if(e.key==='Enter') G.startWithName(); });
+document.getElementById('contBtn').addEventListener('click',   function(){ G.next(); });
+document.getElementById('nameInput').focus();
+</script>
+</body>
+</html>
